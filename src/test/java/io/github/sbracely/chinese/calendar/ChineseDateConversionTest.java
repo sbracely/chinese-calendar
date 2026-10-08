@@ -17,6 +17,20 @@ class ChineseDateConversionTest {
     private static final String CALENDAR_DATA_RESOURCE = "calendar-data.csv";
 
     @Test
+    void representsDatesWithPaddedFieldsAndDistinctLeapMonths() {
+        assertThat(CHRONOLOGY.date(2023, 2, 1).toString())
+                .isEqualTo("Chinese 2023-02-01");
+        assertThat(CHRONOLOGY.date(2023, 2, true, 1).toString())
+                .isEqualTo("Chinese 2023-02bis-01");
+        assertThat(CHRONOLOGY.date(2025, 6, 1).toString())
+                .isEqualTo("Chinese 2025-06-01");
+        assertThat(CHRONOLOGY.date(2025, 6, true, 1).toString())
+                .isEqualTo("Chinese 2025-06bis-01");
+        assertThat(CHRONOLOGY.date(2023, 12, 30).toString())
+                .isEqualTo("Chinese 2023-12-30");
+    }
+
+    @Test
     void convertsBetweenIsoAndChineseDatesAcrossSupportedRange() throws IOException {
         int minimumYear = (int) CHRONOLOGY.range(ChronoField.YEAR).getMinimum();
         int maximumYear = (int) CHRONOLOGY.range(ChronoField.YEAR).getMaximum();

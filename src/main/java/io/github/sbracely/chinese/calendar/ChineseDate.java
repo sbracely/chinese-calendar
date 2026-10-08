@@ -290,10 +290,16 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
         return Objects.hash(chronology, prolepticYear, monthOfYear, leapMonth, dayOfMonth);
     }
 
-    // todo: ChineseDateTimeFormatter
+    /**
+     * Returns the chronology ID and date, using {@code bis} after leap months
+     * and two digits for the month and day.
+     * 返回历法 ID 和日期，在闰月月份后添加 {@code bis}，月和日使用两位数字。
+     */
     @Override
     public String toString() {
-        return getChronology().toString() + " " + prolepticYear + "-" + (leapMonth ? "闰" : "") + monthOfYear + "-" + dayOfMonth;
+        return getChronology().getId() + " " + prolepticYear
+                + "-" + (monthOfYear < 10 ? "0" : "") + monthOfYear + (leapMonth ? "bis" : "")
+                + "-" + (dayOfMonth < 10 ? "0" : "") + dayOfMonth;
     }
 
     public ChineseDate plusDays(long days) {
