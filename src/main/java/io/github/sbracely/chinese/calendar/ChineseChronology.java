@@ -643,7 +643,12 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     // todo
     @Override
     public String getDisplayName(TextStyle style, Locale locale) {
-        return super.getDisplayName(style, locale);
+        String displayName = super.getDisplayName(style, locale);
+        if (!getId().equals(displayName)) {
+            return displayName;
+        }
+        //todo: CLDR
+        return displayName;
     }
 
     @Override
