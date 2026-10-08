@@ -290,6 +290,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
         return Objects.hash(chronology, prolepticYear, monthOfYear, leapMonth, dayOfMonth);
     }
 
+    // todo: ChineseDateTimeFormatter
     @Override
     public String toString() {
         return getChronology().toString() + " " + prolepticYear + "-" + (leapMonth ? "闰" : "") + monthOfYear + "-" + dayOfMonth;

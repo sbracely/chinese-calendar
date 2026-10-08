@@ -735,22 +735,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
                 - epochMonthToEpochDay(data, yearToEpochMonth(data, prolepticYear));
     }
 
-    int getMaximumDaysInMonth() {
-        return calendarData().maximumDaysInMonth;
-    }
-
-    int getMinimumDaysInMonth() {
-        return calendarData().minimumDaysInMonth;
-    }
-
-    int getMaximumDayOfYear() {
-        return calendarData().maximumDaysInYear;
-    }
-
-    int getSmallestMaximumDayOfYear() {
-        return calendarData().minimumDaysInYear;
-    }
-
     private int epochDayToEpochMonth(CalendarData data, int epochDay) {
         // binary search
         int ndx = Arrays.binarySearch(data.monthStartEpochDays, epochDay);
