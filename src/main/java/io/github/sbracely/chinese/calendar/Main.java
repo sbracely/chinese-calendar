@@ -1,11 +1,12 @@
 package io.github.sbracely.chinese.calendar;
 
+import java.time.format.TextStyle;
+import java.util.Locale;
+
 public class Main {
     static void main() {
-
-        ChineseDate date = ChineseChronology.INSTANCE.date(1999, 9, 1);
-        IO.println(date);
-
-
+        IO.println(ChineseChronology.INSTANCE.getDisplayName(TextStyle.FULL, Locale.ENGLISH));
+        IO.println(ChineseChronology.INSTANCE.getDisplayName(TextStyle.FULL, Locale.CHINA));
+        IO.println(ChineseChronology.INSTANCE);
     }
 }

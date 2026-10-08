@@ -640,15 +640,17 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         };
     }
 
-    // todo
+    private static final String RESOURCE_BUNDLE_BASE_NAME = "cldr.chinese-calendar";
+    private static final String RESOURCE_BUNDLE_CALENDAR_NAME = "name";
+
     @Override
     public String getDisplayName(TextStyle style, Locale locale) {
         String displayName = super.getDisplayName(style, locale);
         if (!getId().equals(displayName)) {
             return displayName;
         }
-        //todo: CLDR
-        return displayName;
+        ResourceBundle bundle = ResourceBundle.getBundle(RESOURCE_BUNDLE_BASE_NAME, locale);
+        return bundle.getString(RESOURCE_BUNDLE_CALENDAR_NAME);
     }
 
     @Override
