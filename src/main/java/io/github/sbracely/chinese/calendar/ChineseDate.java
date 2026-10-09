@@ -2,6 +2,7 @@ package io.github.sbracely.chinese.calendar;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.DateTimeException;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -71,7 +72,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                 case ALIGNED_WEEK_OF_MONTH -> plusDays((newValue - getLong(ALIGNED_WEEK_OF_MONTH)) * 7);
                 case ALIGNED_WEEK_OF_YEAR -> plusDays((newValue - getLong(ALIGNED_WEEK_OF_YEAR)) * 7);
                 case MONTH_OF_YEAR -> resolvePreviousValid(prolepticYear, (int) newValue, leapMonth, dayOfMonth);
-                case YEAR, YEAR_OF_ERA -> resolvePreviousValid((int) newValue, monthOfYear, leapMonth, dayOfMonth);
+                case YEAR, YEAR_OF_ERA -> plusYears(newValue - prolepticYear);
                 case ERA -> this;
                 default -> throw new UnsupportedTemporalTypeException("Unsupported field: " + field);
             };
@@ -120,6 +121,9 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     }
 
     private ChineseDate(ChineseChronology chronology, long epochDay) {
+        if (epochDay < Integer.MIN_VALUE || epochDay > Integer.MAX_VALUE) {
+            throw new DateTimeException("Date is out of range for Chinese calendar: " + epochDay);
+        }
         int[] chineseDateInfo = chronology.getChineseDateInfo((int) epochDay);
         this.chronology = chronology;
         this.prolepticYear = chineseDateInfo[0];
@@ -171,7 +175,11 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                 case DAYS -> days;
                 case WEEKS -> days / 7;
                 case MONTHS -> chronology.monthsBetween(this, end);
-                case YEARS -> chronology.monthsBetween(this, end) / 12;
+                case YEARS -> yearsUntil(end);
+                case DECADES -> yearsUntil(end) / 10;
+                case CENTURIES -> yearsUntil(end) / 100;
+                case MILLENNIA -> yearsUntil(end) / 1000;
+                case ERAS -> 0;
                 default -> throw new UnsupportedTemporalTypeException("Unsupported unit: " + unit);
             };
         }
@@ -181,9 +189,70 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     @Override
     public ChronoPeriod until(ChronoLocalDate endDateExclusive) {
         ChineseDate end = chronology.date(endDateExclusive);
-        long months = chronology.monthsBetween(this, end);
-        long monthDays = end.toEpochDay() - chronology.epochDayAfterMonths(this, months);
-        return chronology.period(0, (int) months, (int) monthDays);
+        long years = yearsUntil(end);
+        ChineseDate afterYears = plusYears(years);
+        long months = chronology.monthsBetween(afterYears, end);
+        long monthDays = end.toEpochDay() - afterYears.plusMonths(months).toEpochDay();
+        return chronology.period(Math.toIntExact(years), Math.toIntExact(months), Math.toIntExact(monthDays));
+    }
+
+    private long yearsUntil(ChineseDate end) {
+        long years = (long) end.prolepticYear - prolepticYear;
+        long anniversary = plusYears(years).toEpochDay();
+        if (years > 0 && anniversary > end.toEpochDay()) {
+            years--;
+        } else if (years < 0 && anniversary < end.toEpochDay()) {
+            years++;
+        }
+        return years;
+    }
+
+    @Override
+    public ChineseDate plus(TemporalAmount amount) {
+        return (ChineseDate) ChronoLocalDate.super.plus(amount);
+    }
+
+    @Override
+    public ChineseDate minus(TemporalAmount amount) {
+        return (ChineseDate) ChronoLocalDate.super.minus(amount);
+    }
+
+    @Override
+    public ChineseDate plus(long amountToAdd, TemporalUnit unit) {
+        if (unit instanceof ChronoUnit chronoUnit) {
+            return switch (chronoUnit) {
+                case DAYS -> plusDays(amountToAdd);
+                case WEEKS -> plusDays(Math.multiplyExact(amountToAdd, 7));
+                case MONTHS -> plusMonths(amountToAdd);
+                case YEARS -> plusYears(amountToAdd);
+                case DECADES -> plusYears(Math.multiplyExact(amountToAdd, 10));
+                case CENTURIES -> plusYears(Math.multiplyExact(amountToAdd, 100));
+                case MILLENNIA -> plusYears(Math.multiplyExact(amountToAdd, 1000));
+                case ERAS -> (ChineseDate) with(ERA, Math.addExact(getLong(ERA), amountToAdd));
+                default -> throw new UnsupportedTemporalTypeException("Unsupported unit: " + unit);
+            };
+        }
+        return (ChineseDate) ChronoLocalDate.super.plus(amountToAdd, unit);
+    }
+
+    @Override
+    public ChineseDate minus(long amountToSubtract, TemporalUnit unit) {
+        return (ChineseDate) ChronoLocalDate.super.minus(amountToSubtract, unit);
+    }
+
+    public ChineseDate plusYears(long years) {
+        if (years == 0) {
+            return this;
+        }
+        long targetYear = Math.addExact(prolepticYear, years);
+        chronology.checkValidYear(targetYear);
+        int year = Math.toIntExact(targetYear);
+        boolean leap = leapMonth && chronology.getLeapMonth(year) == monthOfYear;
+        return resolvePreviousValid(year, monthOfYear, leap, dayOfMonth);
+    }
+
+    public ChineseDate plusMonths(long months) {
+        return months == 0 ? this : ofEpochDay(chronology, chronology.epochDayAfterMonths(this, months));
     }
 
     @Override
@@ -303,6 +372,6 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     }
 
     public ChineseDate plusDays(long days) {
-        return new ChineseDate(chronology, toEpochDay() + days);
+        return days == 0 ? this : ofEpochDay(chronology, Math.addExact(toEpochDay(), days));
     }
 }

@@ -2,10 +2,7 @@ package io.github.sbracely.chinese.calendar;
 
 import java.io.*;
 import java.time.*;
-import java.time.chrono.AbstractChronology;
-import java.time.chrono.ChronoLocalDateTime;
-import java.time.chrono.ChronoZonedDateTime;
-import java.time.chrono.Era;
+import java.time.chrono.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
@@ -658,6 +655,11 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         return (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
     }
 
+    @Override
+    public ChronoPeriod period(int years, int months, int days) {
+        return new ChinesePeriod(this, years, months, days);
+    }
+
     //-----------------------------------------------------------------------
     // Override methods from AbstractChronology
     // 重写 AbstractChronology 中的方法
@@ -842,15 +844,23 @@ public final class ChineseChronology extends AbstractChronology implements Seria
 
     long epochDayAfterMonths(ChineseDate start, long months) {
         CalendarData data = calendarData();
-        long targetIndex = monthIndex(data, start) + months;
-        int year = months < 0 ? data.maximumYear : data.minimumYear;
-        while (year > data.minimumYear && yearToEpochMonth(data, year) > targetIndex) {
-            year--;
+        long targetIndex = Math.addExact(monthIndex(data, start), months);
+        if (targetIndex < 0) {
+            throw new DateTimeException("Month adjustment is out of range for Chinese calendar: " + months);
         }
-        while (year < data.maximumYear && yearToEpochMonth(data, year + 1) <= targetIndex) {
+        int year = data.minimumYear;
+        while (year <= data.maximumYear) {
+            int monthCount = data.leapMonthByYear.containsKey(year) ? 13 : 12;
+            if (targetIndex < monthCount) {
+                break;
+            }
+            targetIndex -= monthCount;
             year++;
         }
-        int monthIndex = (int) (targetIndex - yearToEpochMonth(data, year));
+        if (year > data.maximumYear) {
+            throw new DateTimeException("Month adjustment is out of range for Chinese calendar: " + months);
+        }
+        int monthIndex = Math.toIntExact(targetIndex);
         int leapMonth = data.leapMonthByYear.getOrDefault(year, 0);
         boolean leap = leapMonth != 0 && monthIndex == leapMonth;
         int month = leap ? leapMonth : monthIndex + 1 - (leapMonth != 0 && monthIndex > leapMonth ? 1 : 0);
@@ -865,8 +875,14 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     private long monthIndex(CalendarData data, ChineseDate date) {
-        return yearToEpochMonth(data, date.prolepticYear())
-                + chineseYearMonthToEpochMonth(
+        // The epoch-month table has padding slots for common years; they are not actual months.
+        long months = (long) (date.prolepticYear() - data.minimumYear) * 12;
+        for (int leapYear : data.leapMonthByYear.keySet()) {
+            if (leapYear < date.prolepticYear()) {
+                months++;
+            }
+        }
+        return months + chineseYearMonthToEpochMonth(
                 data, date.prolepticYear(), date.monthOfYear(), date.isLeapMonth());
     }
 }

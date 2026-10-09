@@ -1,0 +1,227 @@
+package io.github.sbracely.chinese.calendar;
+
+import org.junit.jupiter.api.Test;
+
+import java.time.DateTimeException;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.Period;
+import java.time.chrono.ChronoPeriod;
+import java.time.chrono.HijrahChronology;
+import java.time.temporal.UnsupportedTemporalTypeException;
+
+import static java.time.temporal.ChronoField.*;
+import static java.time.temporal.ChronoUnit.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class ChinesePeriodTest {
+    private static final ChineseChronology CHRONOLOGY = ChineseChronology.INSTANCE;
+
+    @Test
+    void exposesComponentsAndValueSemantics() {
+        ChronoPeriod period = CHRONOLOGY.period(1, 2, 3);
+        assertThat(period.getChronology()).isEqualTo(CHRONOLOGY);
+        assertThat(period.getUnits()).containsExactly(YEARS, MONTHS, DAYS);
+        assertThat(period.get(YEARS)).isEqualTo(1);
+        assertThat(period.get(MONTHS)).isEqualTo(2);
+        assertThat(period.get(DAYS)).isEqualTo(3);
+        assertThat(period).isEqualTo(CHRONOLOGY.period(1, 2, 3));
+        assertThat(period.hashCode()).isEqualTo(CHRONOLOGY.period(1, 2, 3).hashCode());
+        assertThat(period.toString()).isEqualTo("Chinese P1Y2M3D");
+        assertThat(CHRONOLOGY.period(0, 0, 0).toString()).isEqualTo("Chinese P0D");
+        assertThat(period.isZero()).isFalse();
+        assertThat(CHRONOLOGY.period(0, 0, 0).isZero()).isTrue();
+        assertThat(CHRONOLOGY.period(0, -1, 1).isNegative()).isTrue();
+        assertThatThrownBy(() -> period.get(WEEKS))
+                .isInstanceOf(UnsupportedTemporalTypeException.class);
+        assertThatThrownBy(() -> period.get(null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void operatesOnComponentsWithoutConvertingMonthsToYears() {
+        ChronoPeriod period = CHRONOLOGY.period(1, 13, -3);
+        assertThat(period.normalized()).isSameAs(period);
+        assertThat(period.plus(CHRONOLOGY.period(2, -1, 4)))
+                .isEqualTo(CHRONOLOGY.period(3, 12, 1));
+        assertThat(period.minus(CHRONOLOGY.period(2, -1, 4)))
+                .isEqualTo(CHRONOLOGY.period(-1, 14, -7));
+        assertThat(period.multipliedBy(2)).isEqualTo(CHRONOLOGY.period(2, 26, -6));
+        assertThat(period.negated()).isEqualTo(CHRONOLOGY.period(-1, -13, 3));
+        assertThat(period.multipliedBy(0).isZero()).isTrue();
+    }
+
+    @Test
+    void appliesYearsThenActualMonthsThenDays() {
+        ChineseDate start = CHRONOLOGY.date(2023, 1, 1);
+        ChronoPeriod period = CHRONOLOGY.period(1, 1, 2);
+        assertThat(start.plus(period)).isEqualTo(CHRONOLOGY.date(2024, 2, 3));
+        assertThat(start.minus(period)).isEqualTo(start.plusYears(-1).plusMonths(-1).plusDays(-2));
+        assertThat(period.addTo(start)).isEqualTo(start.plus(period));
+        assertThat(period.subtractFrom(start)).isEqualTo(start.minus(period));
+        assertThat(start.atTime(LocalTime.NOON).plus(period))
+                .isEqualTo(CHRONOLOGY.date(2024, 2, 3).atTime(LocalTime.NOON));
+        assertThat(start.plus(CHRONOLOGY.period(0, 0, 0))).isEqualTo(start);
+        assertThat(start.plusMonths(12)).isNotEqualTo(start.plusYears(1));
+        assertThat(start.plusMonths(13)).isEqualTo(start.plusYears(1));
+    }
+
+    @Test
+    void rejectsOtherChronologiesAndInvalidAmounts() {
+        ChronoPeriod period = CHRONOLOGY.period(1, 0, 0);
+        assertThatThrownBy(() -> period.addTo(LocalDate.of(2024, 1, 1)))
+                .isInstanceOf(DateTimeException.class).hasMessageContaining("Chronology mismatch");
+        assertThatThrownBy(() -> CHRONOLOGY.period(0, 0, 0).subtractFrom(LocalDate.now()))
+                .isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> period.plus(Period.ofYears(1)))
+                .isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> period.minus(HijrahChronology.INSTANCE.period(1, 0, 0)))
+                .isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> period.plus(java.time.Duration.ofDays(1)))
+                .isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> period.plus(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> period.addTo(null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void detectsComponentOverflow() {
+        ChronoPeriod maximum = CHRONOLOGY.period(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        for (ChronoPeriod increment : new ChronoPeriod[]{
+                CHRONOLOGY.period(1, 0, 0), CHRONOLOGY.period(0, 1, 0), CHRONOLOGY.period(0, 0, 1)}) {
+            assertThatThrownBy(() -> maximum.plus(increment)).isInstanceOf(ArithmeticException.class);
+        }
+        assertThatThrownBy(() -> maximum.multipliedBy(2)).isInstanceOf(ArithmeticException.class);
+        assertThatThrownBy(() -> CHRONOLOGY.period(Integer.MIN_VALUE, 0, 0).negated())
+                .isInstanceOf(ArithmeticException.class);
+        assertThatThrownBy(() -> CHRONOLOGY.period(0, Integer.MIN_VALUE, 0)
+                .minus(CHRONOLOGY.period(0, 1, 0))).isInstanceOf(ArithmeticException.class);
+    }
+
+    @Test
+    void movesThroughLeapMonthsAndCommonYearBoundaries() {
+        ChineseDate secondMonth = CHRONOLOGY.date(2023, 2, 1);
+        ChineseDate leapMonth = CHRONOLOGY.date(2023, 2, true, 1);
+        ChineseDate thirdMonth = CHRONOLOGY.date(2023, 3, 1);
+        assertThat(secondMonth.plusMonths(1)).isEqualTo(leapMonth);
+        assertThat(leapMonth.plusMonths(1)).isEqualTo(thirdMonth);
+        assertThat(thirdMonth.minus(1, MONTHS)).isEqualTo(leapMonth);
+        assertThat(leapMonth.minus(1, MONTHS)).isEqualTo(secondMonth);
+        assertThat(CHRONOLOGY.date(2024, 12, 1).plusMonths(1))
+                .isEqualTo(CHRONOLOGY.date(2025, 1, 1));
+        assertThat(CHRONOLOGY.date(2025, 1, 1).plusMonths(-1))
+                .isEqualTo(CHRONOLOGY.date(2024, 12, 1));
+        assertThat(CHRONOLOGY.date(2024, 1, 1).until(CHRONOLOGY.date(2025, 1, 1), MONTHS))
+                .isEqualTo(12);
+        assertThat(CHRONOLOGY.date(2023, 1, 1).until(CHRONOLOGY.date(2024, 1, 1), MONTHS))
+                .isEqualTo(13);
+    }
+
+    @Test
+    void adjustsLeapStatusAndClampsDaysWhenMovingYears() {
+        ChineseDate leapMonth = CHRONOLOGY.date(2023, 2, true, 1);
+        assertThat(leapMonth.plusYears(1)).isEqualTo(CHRONOLOGY.date(2024, 2, 1));
+        assertThat(leapMonth.with(YEAR, 2024)).isEqualTo(leapMonth.plusYears(1));
+        assertThat(leapMonth.with(YEAR_OF_ERA, 2024)).isEqualTo(leapMonth.plusYears(1));
+        assertThat(leapMonth.plusYears(-1)).isEqualTo(CHRONOLOGY.date(2022, 2, 1));
+        assertThat(leapMonth.plusYears(19)).isEqualTo(CHRONOLOGY.date(2042, 2, true, 1));
+        ChineseDate endOfYear = CHRONOLOGY.date(2023, 12, 30);
+        ChineseDate target = endOfYear.plusYears(1);
+        assertThat(target.getLong(DAY_OF_MONTH)).isEqualTo(target.lengthOfMonth());
+        assertThat(CHRONOLOGY.date(2023, 1, 1).until(CHRONOLOGY.date(2024, 1, 1), YEARS))
+                .isEqualTo(1);
+        assertThat(leapMonth.until(CHRONOLOGY.date(2024, 2, 1), YEARS)).isEqualTo(1);
+    }
+
+    @Test
+    void supportsStandardDateUnitsAndRejectsTimeUnits() {
+        ChineseDate start = CHRONOLOGY.date(2023, 1, 1);
+        assertThat(start.plus(1, WEEKS)).isEqualTo(start.plusDays(7));
+        assertThat(start.plus(1, DECADES)).isEqualTo(start.plusYears(10));
+        assertThat(CHRONOLOGY.date(1900, 1, 1).plus(1, CENTURIES))
+                .isEqualTo(CHRONOLOGY.date(2000, 1, 1));
+        assertThat(start.plus(0, MILLENNIA)).isEqualTo(start);
+        assertThat(start.until(start.plusYears(10), DECADES)).isEqualTo(1);
+        assertThat(start.plus(0, ERAS)).isEqualTo(start);
+        assertThat(start.until(start.plusDays(10), ERAS)).isZero();
+        assertThatThrownBy(() -> start.plus(1, ERAS)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> start.plus(1, HOURS))
+                .isInstanceOf(UnsupportedTemporalTypeException.class);
+        assertThatThrownBy(() -> start.plus(Period.ofDays(1))).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> start.until(start, HOURS))
+                .isInstanceOf(UnsupportedTemporalTypeException.class);
+        assertThatThrownBy(() -> start.plus(Long.MAX_VALUE, WEEKS))
+                .isInstanceOf(ArithmeticException.class);
+    }
+
+    @Test
+    void rejectsOutOfRangeAdjustmentsWithoutWrappingOrUsingPaddingMonths() {
+        ChineseDate minimum = CHRONOLOGY.date(1900, 1, 1);
+        ChineseDate maximum = CHRONOLOGY.date(2099, 12, 1);
+        maximum = maximum.plusDays(maximum.lengthOfMonth() - 1);
+        ChineseDate lastDate = maximum;
+        assertThatThrownBy(() -> minimum.plusMonths(-1)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> minimum.plusYears(-1)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> minimum.plusDays(-1)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> lastDate.plusMonths(1)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> lastDate.plusYears(1)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> lastDate.plusDays(1)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> minimum.plusDays(1L << 32)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> minimum.plusMonths(Long.MAX_VALUE)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> minimum.minus(Long.MIN_VALUE, DAYS)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> lastDate.plusYears(Long.MAX_VALUE)).isInstanceOf(ArithmeticException.class);
+    }
+
+    @Test
+    void reconstructsIntervalsAcrossEverySupportedMonth() {
+        ChineseDate minimum = CHRONOLOGY.date(1900, 1, 1);
+        ChineseDate maximum = CHRONOLOGY.date(2099, 12, 1);
+        long maximumDay = maximum.plusDays(maximum.lengthOfMonth() - 1).toEpochDay();
+        ChineseDate month = minimum;
+        while (true) {
+            for (ChineseDate start : new ChineseDate[]{month, month.plusDays(month.lengthOfMonth() - 1)}) {
+                for (int offset : new int[]{-800, -400, -60, -30, -1, 0, 1, 30, 60, 400, 800}) {
+                    long targetDay = start.toEpochDay() + offset;
+                    if (targetDay < minimum.toEpochDay() || targetDay > maximumDay) {
+                        continue;
+                    }
+                    ChineseDate end = CHRONOLOGY.dateEpochDay(targetDay);
+                    ChronoPeriod period = start.until(end);
+                    assertThat(start.plus(period)).as("%s to %s via %s", start, end, period).isEqualTo(end);
+                    assertThat(ChronoPeriod.between(start, end)).isEqualTo(period);
+                    assertThat(start.plus(period.normalized())).isEqualTo(end);
+                }
+            }
+            if (month.prolepticYear() == 2099 && month.monthOfYear() == 12) {
+                break;
+            }
+            ChineseDate next = month.plusMonths(1);
+            assertThat(month.until(next, MONTHS)).isEqualTo(1);
+            assertThat(next.plusMonths(-1)).isEqualTo(month);
+            ChineseDate monthEnd = month.plusDays(month.lengthOfMonth() - 1);
+            ChineseDate adjusted = monthEnd.plusMonths(1);
+            assertThat(adjusted.getLong(DAY_OF_MONTH))
+                    .isEqualTo(Math.min(month.lengthOfMonth(), next.lengthOfMonth()));
+            assertThat(adjusted.with(DAY_OF_MONTH, 1)).isEqualTo(next);
+            month = next;
+        }
+        assertThat(minimum.plus(minimum.until(maximum))).isEqualTo(maximum);
+        assertThat(maximum.plus(maximum.until(minimum))).isEqualTo(minimum);
+    }
+
+    @Test
+    void reconstructsIntervalsFromEverySupportedDay() {
+        ChineseDate minimum = CHRONOLOGY.date(1900, 1, 1);
+        ChineseDate lastMonth = CHRONOLOGY.date(2099, 12, 1);
+        long maximumDay = lastMonth.plusDays(lastMonth.lengthOfMonth() - 1).toEpochDay();
+        for (long epochDay = minimum.toEpochDay(); epochDay <= maximumDay; epochDay++) {
+            ChineseDate start = CHRONOLOGY.dateEpochDay(epochDay);
+            for (int offset : new int[]{-400, -31, 31, 400}) {
+                long targetDay = epochDay + offset;
+                if (targetDay >= minimum.toEpochDay() && targetDay <= maximumDay) {
+                    ChineseDate end = CHRONOLOGY.dateEpochDay(targetDay);
+                    assertThat(start.plus(start.until(end))).as("%s to %s", start, end).isEqualTo(end);
+                }
+            }
+        }
+    }
+}
