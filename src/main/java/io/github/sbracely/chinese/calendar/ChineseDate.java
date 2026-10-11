@@ -79,7 +79,12 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
         } else if (field instanceof ChineseTemporalField chineseTemporalField) {
             chineseTemporalField.rangeRefinedBy(this).checkValidValue(newValue, chineseTemporalField);
             return switch (chineseTemporalField) {
-                case IS_LEAP_MONTH -> resolvePreviousValid(prolepticYear, monthOfYear, newValue == 1, dayOfMonth);
+                case IS_LEAP_MONTH -> {
+                    if (newValue == 1 && chronology.getLeapMonth(prolepticYear) != monthOfYear) {
+                        throw new DateTimeException("Invalid leap month: " + monthOfYear + " in year " + prolepticYear);
+                    }
+                    yield resolvePreviousValid(prolepticYear, monthOfYear, newValue == 1, dayOfMonth);
+                }
                 case MONTH_AS_ORDINAL_OF_YEAR -> {
                     int leapMonth = chronology.getLeapMonth(prolepticYear);
                     boolean isLeapMonth = false;
@@ -107,7 +112,24 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
         return DayOfWeek.of(dow0 + 1);
     }
 
+    /**
+     * Resolves an adjusted date by falling back to the corresponding regular month if the
+     * specified leap month does not exist, then clamping the day to the month's length.
+     * 解析调整后的日期：如果指定闰月不存在，则回退到同名普通月，再将日数限制在该月份的天数内。
+     *
+     * @param prolepticYear the target proleptic year
+     *                      目标年份
+     * @param month the target month-of-year
+     *              目标月份
+     * @param leapMonth whether the target month is specified as a leap month
+     *                  是否指定使用目标月份的闰月
+     * @param day the specified day-of-month
+     *            指定的日数
+     * @return the resolved date
+     * 调整后的日期
+     */
     private ChineseDate resolvePreviousValid(int prolepticYear, int month, boolean leapMonth, int day) {
+        leapMonth = leapMonth && chronology.getLeapMonth(prolepticYear) == month;
         int monthLength = chronology.getMonthLength(prolepticYear, month, leapMonth);
         return ChineseDate.of(chronology, prolepticYear, month, leapMonth, Math.min(day, monthLength));
     }
@@ -247,8 +269,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
         long targetYear = Math.addExact(prolepticYear, years);
         chronology.checkValidYear(targetYear);
         int year = Math.toIntExact(targetYear);
-        boolean leap = leapMonth && chronology.getLeapMonth(year) == monthOfYear;
-        return resolvePreviousValid(year, monthOfYear, leap, dayOfMonth);
+        return resolvePreviousValid(year, monthOfYear, leapMonth, dayOfMonth);
     }
 
     public ChineseDate plusMonths(long months) {

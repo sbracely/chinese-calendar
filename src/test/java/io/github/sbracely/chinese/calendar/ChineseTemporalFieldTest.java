@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.UnsupportedTemporalTypeException;
 import java.time.temporal.ValueRange;
@@ -87,6 +88,57 @@ class ChineseTemporalFieldTest {
                 .isEqualTo(CHRONOLOGY.date(2023, 2, 1));
         assertThat(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR.adjustInto(leapMonth, 4))
                 .isEqualTo(CHRONOLOGY.date(2023, 3, 1));
+    }
+
+    @Test
+    void resolvesLeapStatusAndClampsDaysWhenChangingMonths() {
+        ChineseDate leapMonth = CHRONOLOGY.date(2023, 2, true, 1);
+        leapMonth = CHRONOLOGY.date(2023, 2, true, leapMonth.lengthOfMonth());
+
+        for (int month = 1; month <= 12; month++) {
+            boolean leap = month == 2;
+            ChineseDate target = CHRONOLOGY.date(2023, month, leap, 1);
+            int day = Math.min(leapMonth.get(ChronoField.DAY_OF_MONTH), target.lengthOfMonth());
+            assertThat(leapMonth.with(ChronoField.MONTH_OF_YEAR, month))
+                    .isEqualTo(CHRONOLOGY.date(2023, month, leap, day));
+        }
+        assertThat(CHRONOLOGY.date(2023, 3, 1).with(ChronoField.MONTH_OF_YEAR, 2))
+                .isEqualTo(CHRONOLOGY.date(2023, 2, 1));
+        assertThat(CHRONOLOGY.date(2017, 6, true, 30).with(ChronoField.MONTH_OF_YEAR, 1))
+                .isEqualTo(CHRONOLOGY.date(2017, 1, 29));
+    }
+
+    @Test
+    void clampsDaysWhenExplicitlyChangingLeapStatus() {
+        ChineseDate regularMonth = CHRONOLOGY.date(2023, 2, 1);
+        ChineseDate leapMonth = CHRONOLOGY.date(2023, 2, true, 1);
+        int day = Math.min(regularMonth.lengthOfMonth(), leapMonth.lengthOfMonth());
+
+        assertThat(CHRONOLOGY.date(2023, 2, regularMonth.lengthOfMonth())
+                .with(ChineseTemporalField.IS_LEAP_MONTH, 1))
+                .isEqualTo(CHRONOLOGY.date(2023, 2, true, day));
+        assertThat(CHRONOLOGY.date(2023, 2, true, leapMonth.lengthOfMonth())
+                .with(ChineseTemporalField.IS_LEAP_MONTH, 0))
+                .isEqualTo(CHRONOLOGY.date(2023, 2, day));
+        assertThat(leapMonth.with(ChineseTemporalField.IS_LEAP_MONTH, 1)).isEqualTo(leapMonth);
+    }
+
+    @Test
+    void rejectsExplicitlySettingNonexistentLeapMonths() {
+        ChineseDate wrongMonth = CHRONOLOGY.date(2023, 3, 1);
+        ChineseDate commonYear = CHRONOLOGY.date(2024, 2, 1);
+
+        assertThatThrownBy(() -> wrongMonth.with(ChineseTemporalField.IS_LEAP_MONTH, 1))
+                .isInstanceOf(DateTimeException.class)
+                .hasMessage("Invalid leap month: 3 in year 2023");
+        assertThatThrownBy(() -> ChineseTemporalField.IS_LEAP_MONTH.adjustInto(wrongMonth, 1))
+                .isInstanceOf(DateTimeException.class)
+                .hasMessage("Invalid leap month: 3 in year 2023");
+        assertThatThrownBy(() -> commonYear.with(ChineseTemporalField.IS_LEAP_MONTH, 1))
+                .isInstanceOf(DateTimeException.class);
+        assertThat(commonYear.with(ChineseTemporalField.IS_LEAP_MONTH, 0)).isEqualTo(commonYear);
+        assertThatThrownBy(() -> CHRONOLOGY.date(2023, 3, true, 1))
+                .isInstanceOf(DateTimeException.class);
     }
 
     @Test
