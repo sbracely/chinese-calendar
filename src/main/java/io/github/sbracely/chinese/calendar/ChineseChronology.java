@@ -656,7 +656,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     @Override
-    public ChronoPeriod period(int years, int months, int days) {
+    public ChinesePeriod period(int years, int months, int days) {
         return new ChinesePeriod(this, years, months, days);
     }
 
@@ -803,13 +803,33 @@ public final class ChineseChronology extends AbstractChronology implements Seria
 
     @Serial
     Object writeReplace() {
-//        return super.writeReplace();
-        return null;
+        return new Ser(typeId, calendarType);
     }
 
     @Serial
     private void readObject(ObjectInputStream s) throws InvalidObjectException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
+    }
+
+    private static final class Ser implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
+        private final String typeId;
+        private final String calendarType;
+
+        private Ser(String typeId, String calendarType) {
+            this.typeId = typeId;
+            this.calendarType = calendarType;
+        }
+
+        @Serial
+        private Object readResolve() throws ObjectStreamException {
+            if (INSTANCE.getId().equals(typeId) && INSTANCE.getCalendarType().equals(calendarType)) {
+                return INSTANCE;
+            }
+            throw new InvalidObjectException("Unknown Chinese chronology: " + typeId + "-" + calendarType);
+        }
     }
 
     private boolean isLeapEpochMonth(CalendarData data, int epochMonth, int year) {

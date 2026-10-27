@@ -2,6 +2,10 @@ package io.github.sbracely.chinese.calendar;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -36,6 +40,23 @@ class ChinesePeriodTest {
         assertThatThrownBy(() -> period.get(WEEKS))
                 .isInstanceOf(UnsupportedTemporalTypeException.class);
         assertThatThrownBy(() -> period.get(null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void serializesAndDeserializes() throws Exception {
+        ChronoPeriod period = CHRONOLOGY.period(1, 2, 3);
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream output = new ObjectOutputStream(bytes)) {
+            output.writeObject(period);
+        }
+
+        ChronoPeriod deserialized;
+        try (ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+            deserialized = (ChronoPeriod) input.readObject();
+        }
+
+        assertThat(deserialized).isEqualTo(period);
+        assertThat(deserialized.getChronology()).isSameAs(CHRONOLOGY);
     }
 
     @Test

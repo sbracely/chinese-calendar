@@ -1,5 +1,6 @@
 package io.github.sbracely.chinese.calendar;
 
+import java.io.Serializable;
 import java.time.DateTimeException;
 import java.time.chrono.ChronoPeriod;
 import java.time.chrono.Chronology;
@@ -9,10 +10,12 @@ import java.util.Objects;
 
 import static java.time.temporal.ChronoUnit.*;
 
-record ChinesePeriod(ChineseChronology chronology, int years, int months, int days) implements ChronoPeriod {
+public record ChinesePeriod(ChineseChronology chronology, int years, int months, int days)
+        implements ChronoPeriod, Serializable {
+
     private static final List<TemporalUnit> UNITS = List.of(YEARS, MONTHS, DAYS);
 
-    ChinesePeriod {
+    public ChinesePeriod {
         Objects.requireNonNull(chronology, "chronology");
     }
 
