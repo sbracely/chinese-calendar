@@ -44,15 +44,15 @@ class ChinesePeriodTest {
 
     @Test
     void serializesAndDeserializes() throws Exception {
-        ChronoPeriod period = CHRONOLOGY.period(1, 2, 3);
+        ChinesePeriod period = CHRONOLOGY.period(1, 2, 3);
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (ObjectOutputStream output = new ObjectOutputStream(bytes)) {
             output.writeObject(period);
         }
 
-        ChronoPeriod deserialized;
+        ChinesePeriod deserialized;
         try (ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
-            deserialized = (ChronoPeriod) input.readObject();
+            deserialized = (ChinesePeriod) input.readObject();
         }
 
         assertThat(deserialized).isEqualTo(period);
@@ -61,7 +61,7 @@ class ChinesePeriodTest {
 
     @Test
     void operatesOnComponentsWithoutConvertingMonthsToYears() {
-        ChronoPeriod period = CHRONOLOGY.period(1, 13, -3);
+        ChinesePeriod period = CHRONOLOGY.period(1, 13, -3);
         assertThat(period.normalized()).isSameAs(period);
         assertThat(period.plus(CHRONOLOGY.period(2, -1, 4)))
                 .isEqualTo(CHRONOLOGY.period(3, 12, 1));
@@ -75,7 +75,7 @@ class ChinesePeriodTest {
     @Test
     void appliesYearsThenActualMonthsThenDays() {
         ChineseDate start = CHRONOLOGY.date(2023, 1, 1);
-        ChronoPeriod period = CHRONOLOGY.period(1, 1, 2);
+        ChinesePeriod period = CHRONOLOGY.period(1, 1, 2);
         assertThat(start.plus(period)).isEqualTo(CHRONOLOGY.date(2024, 2, 3));
         assertThat(start.minus(period)).isEqualTo(start.plusYears(-1).plusMonths(-1).plusDays(-2));
         assertThat(period.addTo(start)).isEqualTo(start.plus(period));
@@ -89,7 +89,7 @@ class ChinesePeriodTest {
 
     @Test
     void rejectsOtherChronologiesAndInvalidAmounts() {
-        ChronoPeriod period = CHRONOLOGY.period(1, 0, 0);
+        ChinesePeriod period = CHRONOLOGY.period(1, 0, 0);
         assertThatThrownBy(() -> period.addTo(LocalDate.of(2024, 1, 1)))
                 .isInstanceOf(DateTimeException.class).hasMessageContaining("Chronology mismatch");
         assertThatThrownBy(() -> CHRONOLOGY.period(0, 0, 0).subtractFrom(LocalDate.now()))
@@ -106,8 +106,8 @@ class ChinesePeriodTest {
 
     @Test
     void detectsComponentOverflow() {
-        ChronoPeriod maximum = CHRONOLOGY.period(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
-        for (ChronoPeriod increment : new ChronoPeriod[]{
+        ChinesePeriod maximum = CHRONOLOGY.period(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        for (ChinesePeriod increment : new ChinesePeriod[]{
                 CHRONOLOGY.period(1, 0, 0), CHRONOLOGY.period(0, 1, 0), CHRONOLOGY.period(0, 0, 1)}) {
             assertThatThrownBy(() -> maximum.plus(increment)).isInstanceOf(ArithmeticException.class);
         }

@@ -2,7 +2,10 @@ package io.github.sbracely.chinese.calendar;
 
 import java.io.*;
 import java.time.*;
-import java.time.chrono.*;
+import java.time.chrono.AbstractChronology;
+import java.time.chrono.ChronoLocalDateTime;
+import java.time.chrono.ChronoZonedDateTime;
+import java.time.chrono.Era;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
@@ -20,14 +23,6 @@ import static io.github.sbracely.chinese.calendar.ChineseEra.CHINESE_ERA;
  * 农历历法系统
  */
 public final class ChineseChronology extends AbstractChronology implements Serializable {
-
-    /**
-     * Serialization version.
-     * 序列化版本
-     * TODO
-     */
-    @Serial
-    private static final long serialVersionUID = 1L;
 
     /**
      * The Chinese calendar id.
