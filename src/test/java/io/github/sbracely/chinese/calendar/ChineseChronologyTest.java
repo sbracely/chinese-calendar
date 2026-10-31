@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.chrono.IsoEra;
 import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
@@ -102,6 +103,23 @@ class ChineseChronologyTest {
                 .isEqualTo(CHRONOLOGY.date(2023, 2, true, 1));
         assertThat(CHRONOLOGY.dateYearDay(2023, newYear.lengthOfYear()))
                 .isEqualTo(CHRONOLOGY.date(2023, 12, 30));
+    }
+
+    @Test
+    void calculatesEpochSecondForLeapMonthDates() {
+        ChineseDate leapMonthDate = CHRONOLOGY.date(2023, 2, true, 1);
+        ZoneOffset zoneOffset = ZoneOffset.ofHours(8);
+        long expected = LocalDate.ofEpochDay(leapMonthDate.toEpochDay())
+                .atTime(12, 34, 56)
+                .toEpochSecond(zoneOffset);
+
+        assertThat(CHRONOLOGY.epochSecond(2023, 2, true, 1, 12, 34, 56, zoneOffset))
+                .isEqualTo(expected);
+        assertThat(CHRONOLOGY.epochSecond(
+                ChineseEra.CHINESE_ERA, 2023, 2, true, 1, 12, 34, 56, zoneOffset))
+                .isEqualTo(expected);
+        assertThat(CHRONOLOGY.epochSecond(2023, 2, false, 1, 12, 34, 56, zoneOffset))
+                .isNotEqualTo(expected);
     }
 
     @Test

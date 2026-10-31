@@ -482,6 +482,76 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
+     * Calculates the epoch-second from the given era date and time, including the leap-month flag.
+     * 根据给定的年号日期（含闰月标志）和时间计算 epochSecond
+     *
+     * @param era           the era
+     * @param yearOfEra     the chronology year-of-era
+     * @param month         the month-of-year
+     * @param leapMonth     whether the month is a leap month
+     * @param dayOfMonth    the day-of-month
+     * @param hour          the hour-of-day
+     * @param minute        the minute-of-hour
+     * @param second        the second-of-minute
+     * @param zoneOffset    the zone offset
+     * @return the epoch-second
+     */
+    public long epochSecond(Era era, int yearOfEra, int month, boolean leapMonth, int dayOfMonth,
+                            int hour, int minute, int second, ZoneOffset zoneOffset) {
+        Objects.requireNonNull(era, "era");
+        return epochSecond(prolepticYear(era, yearOfEra), month, leapMonth, dayOfMonth,
+                hour, minute, second, zoneOffset);
+    }
+
+    /**
+     * Calculates the epoch-second from the given date and time, including the leap-month flag.
+     * 根据给定的日期（含闰月标志）和时间计算 epochSecond
+     *
+     * @param prolepticYear the proleptic year
+     * @param month         the month-of-year
+     * @param leapMonth     whether the month is a leap month
+     * @param dayOfMonth    the day-of-month
+     * @param hour          the hour-of-day
+     * @param minute        the minute-of-hour
+     * @param second        the second-of-minute
+     * @param zoneOffset    the zone offset
+     * @return the epoch-second
+     */
+    public long epochSecond(int prolepticYear, int month, boolean leapMonth, int dayOfMonth,
+                            int hour, int minute, int second, ZoneOffset zoneOffset) {
+        return epochSecond(date(prolepticYear, month, leapMonth, dayOfMonth),
+                hour, minute, second, zoneOffset);
+    }
+
+    /**
+     * Calculates the epoch-second from the given date and time.
+     * 根据给定的日期和时间计算 epochSecond
+     *
+     * @param date       the Chinese date
+     *                   农历日期
+     * @param hour       the hour-of-day
+     *                   小时
+     * @param minute     the minute-of-hour
+     *                   分钟
+     * @param second     the second-of-minute
+     *                   秒
+     * @param zoneOffset the zone offset
+     *                   时区偏移
+     * @return the epoch-second
+     *         epoch 秒
+     */
+    public long epochSecond(ChineseDate date, int hour, int minute, int second, ZoneOffset zoneOffset) {
+        Objects.requireNonNull(zoneOffset, "zoneOffset");
+        ChronoField.HOUR_OF_DAY.checkValidValue(hour);
+        ChronoField.MINUTE_OF_HOUR.checkValidValue(minute);
+        ChronoField.SECOND_OF_MINUTE.checkValidValue(second);
+
+        long daysInSec = Math.multiplyExact(date.toEpochDay(), 86400);
+        long timeInSec = (hour * 60L + minute) * 60 + second;
+        return Math.addExact(daysInSec, timeInSec - zoneOffset.getTotalSeconds());
+    }
+
+    /**
      * Get the leap month for the given year.
      * 通过年份获取闰月月份
      *
