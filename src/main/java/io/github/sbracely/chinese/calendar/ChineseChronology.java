@@ -42,6 +42,9 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     private transient volatile CalendarData calendarData;
 
+    private static final String RESOURCE_BUNDLE_BASE_NAME = "cldr.chinese-calendar";
+    private static final String RESOURCE_BUNDLE_CALENDAR_NAME = "name";
+
     /**
      * The calendar data for the ChineseChronology.
      * 农历历法的日历数据
@@ -111,6 +114,297 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         }
         this.typeId = id;
         this.calendarType = calendarType;
+    }
+
+    //-----------------------------------------------------------------------
+    // Public methods
+    // 公开方法
+    //-----------------------------------------------------------------------
+
+    /**
+     * Create a ChineseDate from the given era, year-of-era, month, leap month flag, and day-of-month.
+     * 根据给定的纪元、年、月、闰月标志和日创建一个 ChineseDate
+     *
+     * @param era        the era of the correct type for the chronology
+     *                   纪元
+     * @param yearOfEra  the chronology year-of-era
+     *                   年
+     * @param month      the chronology month-of-year
+     *                   月份
+     * @param leapMonth  the leap month flag, true if the month is a leap month, false otherwise
+     *                   闰月标志，如果月份是闰月，则为 true，否则为 false
+     * @param dayOfMonth the chronology day-of-month
+     *                   日
+     * @return the ChineseDate
+     * 农历对象
+     */
+    public ChineseDate date(Era era, int yearOfEra, int month, boolean leapMonth, int dayOfMonth) {
+        return date(prolepticYear(era, yearOfEra), month, leapMonth, dayOfMonth);
+    }
+
+    /**
+     * Create a ChineseDate from the given year, month, leap month flag, and day-of-month.
+     * 根据给定的年、月、闰月标志和日创建一个 ChineseDate
+     *
+     * @param prolepticYear the proleptic year
+     *                      年
+     * @param month         the month-of-year
+     *                      月份
+     * @param leapMonth     the leap month flag, true if the month is a leap month, false otherwise
+     *                      闰月标志，如果月份是闰月，则为 true，否则为 false
+     * @param dayOfMonth    the day-of-month
+     *                      日
+     * @return the ChineseDate
+     * 农历对象
+     */
+    public ChineseDate date(int prolepticYear, int month, boolean leapMonth, int dayOfMonth) {
+        return ChineseDate.of(this, prolepticYear, month, leapMonth, dayOfMonth);
+    }
+
+    /**
+     * Calculates the epoch-second from the given era date and time, including the leap-month flag.
+     * 根据给定的年号日期（含闰月标志）和时间计算 epochSecond
+     *
+     * @param era           the era
+     * @param yearOfEra     the chronology year-of-era
+     * @param month         the month-of-year
+     * @param leapMonth     whether the month is a leap month
+     * @param dayOfMonth    the day-of-month
+     * @param hour          the hour-of-day
+     * @param minute        the minute-of-hour
+     * @param second        the second-of-minute
+     * @param zoneOffset    the zone offset
+     * @return the epoch-second
+     */
+    public long epochSecond(Era era, int yearOfEra, int month, boolean leapMonth, int dayOfMonth,
+                            int hour, int minute, int second, ZoneOffset zoneOffset) {
+        Objects.requireNonNull(era, "era");
+        return epochSecond(prolepticYear(era, yearOfEra), month, leapMonth, dayOfMonth,
+                hour, minute, second, zoneOffset);
+    }
+
+    /**
+     * Calculates the epoch-second from the given date and time, including the leap-month flag.
+     * 根据给定的日期（含闰月标志）和时间计算 epochSecond
+     *
+     * @param prolepticYear the proleptic year
+     * @param month         the month-of-year
+     * @param leapMonth     whether the month is a leap month
+     * @param dayOfMonth    the day-of-month
+     * @param hour          the hour-of-day
+     * @param minute        the minute-of-hour
+     * @param second        the second-of-minute
+     * @param zoneOffset    the zone offset
+     * @return the epoch-second
+     */
+    public long epochSecond(int prolepticYear, int month, boolean leapMonth, int dayOfMonth,
+                            int hour, int minute, int second, ZoneOffset zoneOffset) {
+        return epochSecond(date(prolepticYear, month, leapMonth, dayOfMonth),
+                hour, minute, second, zoneOffset);
+    }
+
+    /**
+     * Calculates the epoch-second from the given date and time.
+     * 根据给定的日期和时间计算 epochSecond
+     *
+     * @param date       the Chinese date
+     *                   农历日期
+     * @param hour       the hour-of-day
+     *                   小时
+     * @param minute     the minute-of-hour
+     *                   分钟
+     * @param second     the second-of-minute
+     *                   秒
+     * @param zoneOffset the zone offset
+     *                   时区偏移
+     * @return the epoch-second
+     *         epoch 秒
+     */
+    public long epochSecond(ChineseDate date, int hour, int minute, int second, ZoneOffset zoneOffset) {
+        Objects.requireNonNull(zoneOffset, "zoneOffset");
+        ChronoField.HOUR_OF_DAY.checkValidValue(hour);
+        ChronoField.MINUTE_OF_HOUR.checkValidValue(minute);
+        ChronoField.SECOND_OF_MINUTE.checkValidValue(second);
+
+        long daysInSec = Math.multiplyExact(date.toEpochDay(), 86400);
+        long timeInSec = (hour * 60L + minute) * 60 + second;
+        return Math.addExact(daysInSec, timeInSec - zoneOffset.getTotalSeconds());
+    }
+
+    /**
+     * Get the leap month for the given year.
+     * 通过年份获取闰月月份
+     *
+     * @param prolepticYear the proleptic year
+     *                      年
+     * @return the leap month, or 0 if there is no leap month
+     * 闰月月份，如果没有闰月则为 0
+     */
+    public int getLeapMonth(long prolepticYear) {
+        return calendarData().leapMonthByYear.getOrDefault((int) prolepticYear, 0);
+    }
+
+    /**
+     * Get the range of the specified field.
+     * 获取指定字段的范围
+     *
+     * @param field the field to get the range for
+     *              要获取范围的字段
+     * @return the range of the field
+     * 字段的范围
+     */
+    public ValueRange range(ChineseTemporalField field) {
+        CalendarData data = calendarData();
+        return switch (field) {
+            case IS_LEAP_MONTH -> ValueRange.of(0, data.leapMonthByYear.isEmpty() ? 0 : 1);
+            case MONTH_AS_ORDINAL_OF_YEAR ->
+                    ValueRange.of(1, field.range().getSmallestMaximum(), data.maximumMonthsInYear);
+        };
+    }
+
+    //-----------------------------------------------------------------------
+    // Override methods from Chronology
+    // 重写 Chronology 中的方法
+    //-----------------------------------------------------------------------
+
+    @Override
+    public String getId() {
+        return typeId;
+    }
+
+    @Override
+    public String getCalendarType() {
+        return calendarType;
+    }
+
+    @Override
+    public ChineseDate date(Era era, int yearOfEra, int month, int dayOfMonth) {
+        return date(prolepticYear(era, yearOfEra), month, dayOfMonth);
+    }
+
+    @Override
+    public ChineseDate date(int prolepticYear, int month, int dayOfMonth) {
+        return ChineseDate.of(this, prolepticYear, month, dayOfMonth);
+    }
+
+    @Override
+    public ChineseDate dateYearDay(Era era, int yearOfEra, int dayOfYear) {
+        return dateYearDay(prolepticYear(era, yearOfEra), dayOfYear);
+    }
+
+    @Override
+    public ChineseDate dateYearDay(int prolepticYear, int dayOfYear) {
+        ChineseDate date = ChineseDate.of(this, prolepticYear, 1, 1);
+        if (dayOfYear < 1 || dayOfYear > date.lengthOfYear()) {
+            throw new DateTimeException("Invalid day of year: " + dayOfYear);
+        }
+        return date.plusDays(dayOfYear - 1);
+    }
+
+    @Override
+    public ChineseDate dateEpochDay(long epochDay) {
+        return ChineseDate.ofEpochDay(this, epochDay);
+    }
+
+    @Override
+    public ChineseDate dateNow() {
+        return dateNow(Clock.systemDefaultZone());
+    }
+
+    @Override
+    public ChineseDate dateNow(ZoneId zone) {
+        return dateNow(Clock.system(zone));
+    }
+
+    @Override
+    public ChineseDate dateNow(Clock clock) {
+        return dateEpochDay(LocalDate.now(clock).toEpochDay());
+    }
+
+    @Override
+    public ChineseDate date(TemporalAccessor temporal) {
+        if (temporal instanceof ChineseDate chineseDate) {
+            return chineseDate;
+        }
+        return dateEpochDay(temporal.getLong(ChronoField.EPOCH_DAY));
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public ChronoLocalDateTime<ChineseDate> localDateTime(TemporalAccessor temporal) {
+        return (ChronoLocalDateTime<ChineseDate>) super.localDateTime(temporal);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public ChronoZonedDateTime<ChineseDate> zonedDateTime(TemporalAccessor temporal) {
+        return (ChronoZonedDateTime<ChineseDate>) super.zonedDateTime(temporal);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public ChronoZonedDateTime<ChineseDate> zonedDateTime(Instant instant, ZoneId zone) {
+        return (ChronoZonedDateTime<ChineseDate>) super.zonedDateTime(instant, zone);
+    }
+
+    @Override
+    public boolean isLeapYear(long prolepticYear) {
+        return calendarData().leapMonthByYear.containsKey((int) prolepticYear);
+    }
+
+    @Override
+    public int prolepticYear(Era era, int yearOfEra) {
+        if (era != CHINESE_ERA) {
+            throw new ClassCastException("Era must be ChineseEra");
+        }
+        return yearOfEra;
+    }
+
+    @Override
+    public Era eraOf(int eraValue) {
+        return ChineseEra.of(eraValue);
+    }
+
+    @Override
+    public List<Era> eras() {
+        return List.of(ChineseEra.values());
+    }
+
+    @Override
+    public ValueRange range(ChronoField field) {
+        CalendarData data = calendarData();
+        return switch (field) {
+            case DAY_OF_MONTH -> ValueRange.of(1, data.minimumDaysInMonth, data.maximumDaysInMonth);
+            case DAY_OF_YEAR -> ValueRange.of(1, data.minimumDaysInYear, data.maximumDaysInYear);
+            case YEAR, YEAR_OF_ERA -> ValueRange.of(data.minimumYear, data.maximumYear);
+            case ERA -> ValueRange.of(CHINESE_ERA.getValue(), CHINESE_ERA.getValue());
+            default -> field.range();
+        };
+    }
+
+    @Override
+    public String getDisplayName(TextStyle style, Locale locale) {
+        String displayName = super.getDisplayName(style, locale);
+        if (!getId().equals(displayName)) {
+            return displayName;
+        }
+        ResourceBundle bundle = ResourceBundle.getBundle(RESOURCE_BUNDLE_BASE_NAME, locale);
+        return bundle.getString(RESOURCE_BUNDLE_CALENDAR_NAME);
+    }
+
+    @Override
+    public ChinesePeriod period(int years, int months, int days) {
+        return new ChinesePeriod(this, years, months, days);
+    }
+
+    //-----------------------------------------------------------------------
+    // Override methods from AbstractChronology
+    // 重写 AbstractChronology 中的方法
+    //-----------------------------------------------------------------------
+
+    @Override
+    public ChineseDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
+        return (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
     }
 
     //-----------------------------------------------------------------------
@@ -437,297 +731,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     //-----------------------------------------------------------------------
-    // public method
-    // public 方法
-    //-----------------------------------------------------------------------
-
-    /**
-     * Create a ChineseDate from the given era, year-of-era, month, leap month flag, and day-of-month.
-     * 根据给定的纪元、年、月、闰月标志和日创建一个 ChineseDate
-     *
-     * @param era        the era of the correct type for the chronology
-     *                   纪元
-     * @param yearOfEra  the chronology year-of-era
-     *                   年
-     * @param month      the chronology month-of-year
-     *                   月份
-     * @param leapMonth  the leap month flag, true if the month is a leap month, false otherwise
-     *                   闰月标志，如果月份是闰月，则为 true，否则为 false
-     * @param dayOfMonth the chronology day-of-month
-     *                   日
-     * @return the ChineseDate
-     * 农历对象
-     */
-    public ChineseDate date(Era era, int yearOfEra, int month, boolean leapMonth, int dayOfMonth) {
-        return date(prolepticYear(era, yearOfEra), month, leapMonth, dayOfMonth);
-    }
-
-    /**
-     * Create a ChineseDate from the given year, month, leap month flag, and day-of-month.
-     * 根据给定的年、月、闰月标志和日创建一个 ChineseDate
-     *
-     * @param prolepticYear the proleptic year
-     *                      年
-     * @param month         the month-of-year
-     *                      月份
-     * @param leapMonth     the leap month flag, true if the month is a leap month, false otherwise
-     *                      闰月标志，如果月份是闰月，则为 true，否则为 false
-     * @param dayOfMonth    the day-of-month
-     *                      日
-     * @return the ChineseDate
-     * 农历对象
-     */
-    public ChineseDate date(int prolepticYear, int month, boolean leapMonth, int dayOfMonth) {
-        return ChineseDate.of(this, prolepticYear, month, leapMonth, dayOfMonth);
-    }
-
-    /**
-     * Calculates the epoch-second from the given era date and time, including the leap-month flag.
-     * 根据给定的年号日期（含闰月标志）和时间计算 epochSecond
-     *
-     * @param era           the era
-     * @param yearOfEra     the chronology year-of-era
-     * @param month         the month-of-year
-     * @param leapMonth     whether the month is a leap month
-     * @param dayOfMonth    the day-of-month
-     * @param hour          the hour-of-day
-     * @param minute        the minute-of-hour
-     * @param second        the second-of-minute
-     * @param zoneOffset    the zone offset
-     * @return the epoch-second
-     */
-    public long epochSecond(Era era, int yearOfEra, int month, boolean leapMonth, int dayOfMonth,
-                            int hour, int minute, int second, ZoneOffset zoneOffset) {
-        Objects.requireNonNull(era, "era");
-        return epochSecond(prolepticYear(era, yearOfEra), month, leapMonth, dayOfMonth,
-                hour, minute, second, zoneOffset);
-    }
-
-    /**
-     * Calculates the epoch-second from the given date and time, including the leap-month flag.
-     * 根据给定的日期（含闰月标志）和时间计算 epochSecond
-     *
-     * @param prolepticYear the proleptic year
-     * @param month         the month-of-year
-     * @param leapMonth     whether the month is a leap month
-     * @param dayOfMonth    the day-of-month
-     * @param hour          the hour-of-day
-     * @param minute        the minute-of-hour
-     * @param second        the second-of-minute
-     * @param zoneOffset    the zone offset
-     * @return the epoch-second
-     */
-    public long epochSecond(int prolepticYear, int month, boolean leapMonth, int dayOfMonth,
-                            int hour, int minute, int second, ZoneOffset zoneOffset) {
-        return epochSecond(date(prolepticYear, month, leapMonth, dayOfMonth),
-                hour, minute, second, zoneOffset);
-    }
-
-    /**
-     * Calculates the epoch-second from the given date and time.
-     * 根据给定的日期和时间计算 epochSecond
-     *
-     * @param date       the Chinese date
-     *                   农历日期
-     * @param hour       the hour-of-day
-     *                   小时
-     * @param minute     the minute-of-hour
-     *                   分钟
-     * @param second     the second-of-minute
-     *                   秒
-     * @param zoneOffset the zone offset
-     *                   时区偏移
-     * @return the epoch-second
-     *         epoch 秒
-     */
-    public long epochSecond(ChineseDate date, int hour, int minute, int second, ZoneOffset zoneOffset) {
-        Objects.requireNonNull(zoneOffset, "zoneOffset");
-        ChronoField.HOUR_OF_DAY.checkValidValue(hour);
-        ChronoField.MINUTE_OF_HOUR.checkValidValue(minute);
-        ChronoField.SECOND_OF_MINUTE.checkValidValue(second);
-
-        long daysInSec = Math.multiplyExact(date.toEpochDay(), 86400);
-        long timeInSec = (hour * 60L + minute) * 60 + second;
-        return Math.addExact(daysInSec, timeInSec - zoneOffset.getTotalSeconds());
-    }
-
-    /**
-     * Get the leap month for the given year.
-     * 通过年份获取闰月月份
-     *
-     * @param prolepticYear the proleptic year
-     *                      年
-     * @return the leap month, or 0 if there is no leap month
-     * 闰月月份，如果没有闰月则为 0
-     */
-    public int getLeapMonth(long prolepticYear) {
-        return calendarData().leapMonthByYear.getOrDefault((int) prolepticYear, 0);
-    }
-
-    /**
-     * Get the range of the specified field.
-     * 获取指定字段的范围
-     *
-     * @param field the field to get the range for
-     *              要获取范围的字段
-     * @return the range of the field
-     * 字段的范围
-     */
-    public ValueRange range(ChineseTemporalField field) {
-        CalendarData data = calendarData();
-        return switch (field) {
-            case IS_LEAP_MONTH -> ValueRange.of(0, data.leapMonthByYear.isEmpty() ? 0 : 1);
-            case MONTH_AS_ORDINAL_OF_YEAR ->
-                    ValueRange.of(1, field.range().getSmallestMaximum(), data.maximumMonthsInYear);
-        };
-    }
-
-    //-----------------------------------------------------------------------
-    // Override methods from Chronology
-    // 重写 Chronology 中的方法
-    //-----------------------------------------------------------------------
-
-    @Override
-    public String getId() {
-        return typeId;
-    }
-
-    @Override
-    public String getCalendarType() {
-        return calendarType;
-    }
-
-    @Override
-    public ChineseDate date(Era era, int yearOfEra, int month, int dayOfMonth) {
-        return date(prolepticYear(era, yearOfEra), month, dayOfMonth);
-    }
-
-    @Override
-    public ChineseDate date(int prolepticYear, int month, int dayOfMonth) {
-        return ChineseDate.of(this, prolepticYear, month, dayOfMonth);
-    }
-
-    @Override
-    public ChineseDate dateYearDay(Era era, int yearOfEra, int dayOfYear) {
-        return dateYearDay(prolepticYear(era, yearOfEra), dayOfYear);
-    }
-
-    @Override
-    public ChineseDate dateYearDay(int prolepticYear, int dayOfYear) {
-        ChineseDate date = ChineseDate.of(this, prolepticYear, 1, 1);
-        if (dayOfYear < 1 || dayOfYear > date.lengthOfYear()) {
-            throw new DateTimeException("Invalid day of year: " + dayOfYear);
-        }
-        return date.plusDays(dayOfYear - 1);
-    }
-
-    @Override
-    public ChineseDate dateEpochDay(long epochDay) {
-        return ChineseDate.ofEpochDay(this, epochDay);
-    }
-
-    @Override
-    public ChineseDate dateNow() {
-        return dateNow(Clock.systemDefaultZone());
-    }
-
-    @Override
-    public ChineseDate dateNow(ZoneId zone) {
-        return dateNow(Clock.system(zone));
-    }
-
-    @Override
-    public ChineseDate dateNow(Clock clock) {
-        return dateEpochDay(LocalDate.now(clock).toEpochDay());
-    }
-
-    @Override
-    public ChineseDate date(TemporalAccessor temporal) {
-        if (temporal instanceof ChineseDate chineseDate) {
-            return chineseDate;
-        }
-        return dateEpochDay(temporal.getLong(ChronoField.EPOCH_DAY));
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public ChronoLocalDateTime<ChineseDate> localDateTime(TemporalAccessor temporal) {
-        return (ChronoLocalDateTime<ChineseDate>) super.localDateTime(temporal);
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public ChronoZonedDateTime<ChineseDate> zonedDateTime(TemporalAccessor temporal) {
-        return (ChronoZonedDateTime<ChineseDate>) super.zonedDateTime(temporal);
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public ChronoZonedDateTime<ChineseDate> zonedDateTime(Instant instant, ZoneId zone) {
-        return (ChronoZonedDateTime<ChineseDate>) super.zonedDateTime(instant, zone);
-    }
-
-    @Override
-    public boolean isLeapYear(long prolepticYear) {
-        return calendarData().leapMonthByYear.containsKey((int) prolepticYear);
-    }
-
-    @Override
-    public int prolepticYear(Era era, int yearOfEra) {
-        if (era != CHINESE_ERA) {
-            throw new ClassCastException("Era must be ChineseEra");
-        }
-        return yearOfEra;
-    }
-
-    @Override
-    public Era eraOf(int eraValue) {
-        return ChineseEra.of(eraValue);
-    }
-
-    @Override
-    public List<Era> eras() {
-        return List.of(ChineseEra.values());
-    }
-
-    @Override
-    public ValueRange range(ChronoField field) {
-        CalendarData data = calendarData();
-        return switch (field) {
-            case DAY_OF_MONTH -> ValueRange.of(1, data.minimumDaysInMonth, data.maximumDaysInMonth);
-            case DAY_OF_YEAR -> ValueRange.of(1, data.minimumDaysInYear, data.maximumDaysInYear);
-            case YEAR, YEAR_OF_ERA -> ValueRange.of(data.minimumYear, data.maximumYear);
-            case ERA -> ValueRange.of(CHINESE_ERA.getValue(), CHINESE_ERA.getValue());
-            default -> field.range();
-        };
-    }
-
-    private static final String RESOURCE_BUNDLE_BASE_NAME = "cldr.chinese-calendar";
-    private static final String RESOURCE_BUNDLE_CALENDAR_NAME = "name";
-
-    @Override
-    public String getDisplayName(TextStyle style, Locale locale) {
-        String displayName = super.getDisplayName(style, locale);
-        if (!getId().equals(displayName)) {
-            return displayName;
-        }
-        ResourceBundle bundle = ResourceBundle.getBundle(RESOURCE_BUNDLE_BASE_NAME, locale);
-        return bundle.getString(RESOURCE_BUNDLE_CALENDAR_NAME);
-    }
-
-    @Override
-    public ChineseDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
-        return (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
-    }
-
-    @Override
-    public ChinesePeriod period(int years, int months, int days) {
-        return new ChinesePeriod(this, years, months, days);
-    }
-
-    //-----------------------------------------------------------------------
-    // Override methods from AbstractChronology
-    // 重写 AbstractChronology 中的方法
+    // Package-private date helpers
+    // 包级日期辅助方法
     //-----------------------------------------------------------------------
 
     void checkValidYear(long prolepticYear) {
@@ -809,6 +814,56 @@ public final class ChineseChronology extends AbstractChronology implements Seria
                 - epochMonthToEpochDay(data, yearToEpochMonth(data, prolepticYear));
     }
 
+    long monthsBetween(ChineseDate start, ChineseDate end) {
+        CalendarData data = calendarData();
+        long startMonth = monthIndex(data, start);
+        long endMonth = monthIndex(data, end);
+        long months = endMonth - startMonth;
+        if (months > 0 && end.getLong(ChronoField.DAY_OF_MONTH) < start.getLong(ChronoField.DAY_OF_MONTH)) {
+            months--;
+        } else if (months < 0 && end.getLong(ChronoField.DAY_OF_MONTH) > start.getLong(ChronoField.DAY_OF_MONTH)) {
+            months++;
+        }
+        return months;
+    }
+
+    long epochDayAfterMonths(ChineseDate start, long months) {
+        CalendarData data = calendarData();
+        long targetIndex = Math.addExact(monthIndex(data, start), months);
+        if (targetIndex < 0) {
+            throw new DateTimeException("Month adjustment is out of range for Chinese calendar: " + months);
+        }
+        int year = data.minimumYear;
+        while (year <= data.maximumYear) {
+            int monthCount = data.leapMonthByYear.containsKey(year) ? 13 : 12;
+            if (targetIndex < monthCount) {
+                break;
+            }
+            targetIndex -= monthCount;
+            year++;
+        }
+        if (year > data.maximumYear) {
+            throw new DateTimeException("Month adjustment is out of range for Chinese calendar: " + months);
+        }
+        int monthIndex = Math.toIntExact(targetIndex);
+        int leapMonth = data.leapMonthByYear.getOrDefault(year, 0);
+        boolean leap = leapMonth != 0 && monthIndex == leapMonth;
+        int month = leap ? leapMonth : monthIndex + 1 - (leapMonth != 0 && monthIndex > leapMonth ? 1 : 0);
+        int epochMonth = yearToEpochMonth(data, year) + chineseYearMonthToEpochMonth(data, year, month, leap);
+        if (epochMonth < 0 || epochMonth >= data.monthStartEpochDays.length) {
+            throw new DateTimeException("Invalid Chinese date, year: " + year + ", month: " + month);
+        }
+        checkValidYear(year);
+        checkValidMonth(month);
+        int day = Math.min(start.get(ChronoField.DAY_OF_MONTH), epochMonthLength(data, epochMonth));
+        return epochMonthToEpochDay(data, epochMonth) + day - 1;
+    }
+
+    //-----------------------------------------------------------------------
+    // Private date conversion helpers
+    // 私有日期转换辅助方法
+    //-----------------------------------------------------------------------
+
     private int epochDayToEpochMonth(CalendarData data, int epochDay) {
         // binary search
         int ndx = Arrays.binarySearch(data.monthStartEpochDays, epochDay);
@@ -866,6 +921,40 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         //TODO
     }
 
+    private boolean isLeapEpochMonth(CalendarData data, int epochMonth, int year) {
+        int monthIndex = epochMonth - yearToEpochMonth(data, year);
+        int leapMonth = data.leapMonthByYear.getOrDefault(year, 0);
+        return leapMonth != 0 && leapMonth == monthIndex;
+    }
+
+    private int chineseYearMonthToEpochMonth(CalendarData data, int year, int month, boolean leap) {
+        int leapMonth = data.leapMonthByYear.getOrDefault(year, 0);
+        if (leap) {
+            if (leapMonth != month) {
+                throw new DateTimeException("Invalid leap month: " + month + " in year " + year);
+            }
+            return month;
+        }
+        return month - 1 + (leapMonth != 0 && month > leapMonth ? 1 : 0);
+    }
+
+    private long monthIndex(CalendarData data, ChineseDate date) {
+        // The epoch-month table has padding slots for common years; they are not actual months.
+        long months = (long) (date.prolepticYear() - data.minimumYear) * 12;
+        for (int leapYear : data.leapMonthByYear.keySet()) {
+            if (leapYear < date.prolepticYear()) {
+                months++;
+            }
+        }
+        return months + chineseYearMonthToEpochMonth(
+                data, date.prolepticYear(), date.monthOfYear(), date.isLeapMonth());
+    }
+
+    //-----------------------------------------------------------------------
+    // Serialization methods
+    // 序列化相关方法
+    //-----------------------------------------------------------------------
+
     @Serial
     Object writeReplace() {
         return new Ser(typeId, calendarType);
@@ -897,77 +986,4 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         }
     }
 
-    private boolean isLeapEpochMonth(CalendarData data, int epochMonth, int year) {
-        int monthIndex = epochMonth - yearToEpochMonth(data, year);
-        int leapMonth = data.leapMonthByYear.getOrDefault(year, 0);
-        return leapMonth != 0 && leapMonth == monthIndex;
-    }
-
-    private int chineseYearMonthToEpochMonth(CalendarData data, int year, int month, boolean leap) {
-        int leapMonth = data.leapMonthByYear.getOrDefault(year, 0);
-        if (leap) {
-            if (leapMonth != month) {
-                throw new DateTimeException("Invalid leap month: " + month + " in year " + year);
-            }
-            return month;
-        }
-        return month - 1 + (leapMonth != 0 && month > leapMonth ? 1 : 0);
-    }
-
-    long monthsBetween(ChineseDate start, ChineseDate end) {
-        CalendarData data = calendarData();
-        long startMonth = monthIndex(data, start);
-        long endMonth = monthIndex(data, end);
-        long months = endMonth - startMonth;
-        if (months > 0 && end.getLong(ChronoField.DAY_OF_MONTH) < start.getLong(ChronoField.DAY_OF_MONTH)) {
-            months--;
-        } else if (months < 0 && end.getLong(ChronoField.DAY_OF_MONTH) > start.getLong(ChronoField.DAY_OF_MONTH)) {
-            months++;
-        }
-        return months;
-    }
-
-    long epochDayAfterMonths(ChineseDate start, long months) {
-        CalendarData data = calendarData();
-        long targetIndex = Math.addExact(monthIndex(data, start), months);
-        if (targetIndex < 0) {
-            throw new DateTimeException("Month adjustment is out of range for Chinese calendar: " + months);
-        }
-        int year = data.minimumYear;
-        while (year <= data.maximumYear) {
-            int monthCount = data.leapMonthByYear.containsKey(year) ? 13 : 12;
-            if (targetIndex < monthCount) {
-                break;
-            }
-            targetIndex -= monthCount;
-            year++;
-        }
-        if (year > data.maximumYear) {
-            throw new DateTimeException("Month adjustment is out of range for Chinese calendar: " + months);
-        }
-        int monthIndex = Math.toIntExact(targetIndex);
-        int leapMonth = data.leapMonthByYear.getOrDefault(year, 0);
-        boolean leap = leapMonth != 0 && monthIndex == leapMonth;
-        int month = leap ? leapMonth : monthIndex + 1 - (leapMonth != 0 && monthIndex > leapMonth ? 1 : 0);
-        int epochMonth = yearToEpochMonth(data, year) + chineseYearMonthToEpochMonth(data, year, month, leap);
-        if (epochMonth < 0 || epochMonth >= data.monthStartEpochDays.length) {
-            throw new DateTimeException("Invalid Chinese date, year: " + year + ", month: " + month);
-        }
-        checkValidYear(year);
-        checkValidMonth(month);
-        int day = Math.min(start.get(ChronoField.DAY_OF_MONTH), epochMonthLength(data, epochMonth));
-        return epochMonthToEpochDay(data, epochMonth) + day - 1;
-    }
-
-    private long monthIndex(CalendarData data, ChineseDate date) {
-        // The epoch-month table has padding slots for common years; they are not actual months.
-        long months = (long) (date.prolepticYear() - data.minimumYear) * 12;
-        for (int leapYear : data.leapMonthByYear.keySet()) {
-            if (leapYear < date.prolepticYear()) {
-                months++;
-            }
-        }
-        return months + chineseYearMonthToEpochMonth(
-                data, date.prolepticYear(), date.monthOfYear(), date.isLeapMonth());
-    }
 }
