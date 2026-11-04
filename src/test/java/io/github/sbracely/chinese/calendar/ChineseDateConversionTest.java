@@ -1,6 +1,9 @@
 package io.github.sbracely.chinese.calendar;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -8,9 +11,16 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.IsoFields;
 import java.time.temporal.TemporalAdjusters;
+import java.time.temporal.TemporalQueries;
+import java.util.Locale;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -85,6 +95,139 @@ class ChineseDateConversionTest {
     void rejectsNullTemporalAdjuster() {
         assertThatThrownBy(() -> CHRONOLOGY.date(2023, 2, 10).with(null))
                 .isInstanceOf(NullPointerException.class);
+    }
+
+    static Stream<Arguments> calendarDates() {
+        return Stream.of(
+                Arguments.of(2023, 2, false, 1, "2023-02-20", true, 2),
+                Arguments.of(2023, 2, true, 1, "2023-03-22", true, 3),
+                Arguments.of(2023, 3, false, 1, "2023-04-20", true, 4),
+                Arguments.of(2023, 12, false, 30, "2024-02-09", true, 13),
+                Arguments.of(2024, 1, false, 1, "2024-02-10", false, 1),
+                Arguments.of(2024, 12, false, 29, "2025-01-28", false, 12));
+    }
+
+    @ParameterizedTest
+    @MethodSource("calendarDates")
+    void exposesEraLeapYearAndQueries(int year, int month, boolean leapMonth, int day,
+                                     String isoDate, boolean leapYear, int ordinalMonth) {
+        ChineseDate date = CHRONOLOGY.date(year, month, leapMonth, day);
+
+        assertThat(date.getEra()).isSameAs(ChineseEra.CHINESE_ERA);
+        assertThat(date.isLeapYear()).isEqualTo(leapYear);
+        assertThat(date.query(TemporalQueries.chronology())).isSameAs(CHRONOLOGY);
+        assertThat(date.query(TemporalQueries.precision())).isEqualTo(ChronoUnit.DAYS);
+        assertThat(date.query(TemporalQueries.localDate())).isEqualTo(LocalDate.parse(isoDate));
+        assertThat(date.query(TemporalQueries.localTime())).isNull();
+        assertThat(date.query(TemporalQueries.zone())).isNull();
+        assertThat(date.query(TemporalQueries.offset())).isNull();
+        long queriedMonth = date.query(
+                temporal -> temporal.getLong(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR));
+        assertThat(queriedMonth).isEqualTo(ordinalMonth);
+    }
+
+    @ParameterizedTest
+    @MethodSource("calendarDates")
+    void supportsDateUnitsButNotTimeOrIsoSpecificUnits(int year, int month, boolean leapMonth, int day,
+                                                      String isoDate, boolean leapYear, int ordinalMonth) {
+        ChineseDate date = CHRONOLOGY.date(year, month, leapMonth, day);
+
+        for (ChronoUnit unit : ChronoUnit.values()) {
+            assertThat(date.isSupported(unit)).as("%s on %s", unit, date)
+                    .isEqualTo(unit.isDateBased());
+        }
+        assertThat(date.isSupported(IsoFields.QUARTER_YEARS)).isFalse();
+    }
+
+    @ParameterizedTest
+    @MethodSource("calendarDates")
+    void adjustsOtherDatesAndCombinesWithTime(int year, int month, boolean leapMonth, int day,
+                                             String isoDate, boolean leapYear, int ordinalMonth) {
+        ChineseDate date = CHRONOLOGY.date(year, month, leapMonth, day);
+        LocalDate expected = LocalDate.parse(isoDate);
+
+        assertThat(date.adjustInto(LocalDate.of(2000, 1, 1))).isEqualTo(expected);
+        assertThat(date.adjustInto(CHRONOLOGY.date(2000, 1, 1))).isEqualTo(date);
+        var dateTime = date.atTime(LocalTime.of(23, 59, 59));
+        assertThat(dateTime.toLocalDate()).isEqualTo(date);
+        assertThat(dateTime.toLocalTime()).isEqualTo(LocalTime.of(23, 59, 59));
+        assertThat(dateTime.getChronology()).isSameAs(CHRONOLOGY);
+        assertThat(LocalDate.from(dateTime)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @MethodSource("calendarDates")
+    void formatsRegularAndLeapMonthFields(int year, int month, boolean leapMonth, int day,
+                                         String isoDate, boolean leapYear, int ordinalMonth) {
+        ChineseDate date = CHRONOLOGY.date(year, month, leapMonth, day);
+        DateTimeFormatter formatter = new DateTimeFormatterBuilder()
+                .appendPattern("uuuu-MM-dd")
+                .appendLiteral('/')
+                .appendValue(ChineseTemporalField.IS_LEAP_MONTH)
+                .appendLiteral('/')
+                .appendValue(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR)
+                .toFormatter(Locale.ROOT);
+
+        assertThat(date.format(formatter)).isEqualTo(
+                String.format(Locale.ROOT, "%04d-%02d-%02d/%d/%d",
+                        year, month, day, leapMonth ? 1 : 0, ordinalMonth));
+    }
+
+    @ParameterizedTest
+    @MethodSource("calendarDates")
+    void adjustsYearBoundariesBeforeWithinAndAfterLeapMonth(int year, int month, boolean leapMonth, int day,
+                                                           String isoDate, boolean leapYear, int ordinalMonth) {
+        ChineseDate date = CHRONOLOGY.date(year, month, leapMonth, day);
+        LocalDate yearStart = LocalDate.parse(year == 2023 ? "2023-01-22" : "2024-02-10");
+        LocalDate nextYearStart = LocalDate.parse(year == 2023 ? "2024-02-10" : "2025-01-29");
+
+        assertThat(LocalDate.from(date.with(TemporalAdjusters.firstDayOfYear()))).isEqualTo(yearStart);
+        assertThat(LocalDate.from(date.with(TemporalAdjusters.lastDayOfYear())))
+                .isEqualTo(nextYearStart.minusDays(1));
+        assertThat(LocalDate.from(date.with(TemporalAdjusters.firstDayOfNextYear())))
+                .isEqualTo(nextYearStart);
+        assertThat(date.getDayOfYear())
+                .isEqualTo(Math.toIntExact(ChronoUnit.DAYS.between(yearStart, LocalDate.parse(isoDate)) + 1));
+    }
+
+    @ParameterizedTest
+    @MethodSource("calendarDates")
+    void comparesSameDayAcrossChronologies(int year, int month, boolean leapMonth, int day,
+                                          String isoDate, boolean leapYear, int ordinalMonth) {
+        ChineseDate date = CHRONOLOGY.date(year, month, leapMonth, day);
+        LocalDate sameDay = LocalDate.parse(isoDate);
+
+        assertThat(date.isEqual(sameDay)).isTrue();
+        assertThat(date.isBefore(sameDay)).isFalse();
+        assertThat(date.isAfter(sameDay)).isFalse();
+        assertThat(date.compareTo(sameDay)).isNotZero();
+        assertThat(Integer.signum(date.compareTo(sameDay)))
+                .isEqualTo(-Integer.signum(sameDay.compareTo(date)));
+        assertThat(date.compareTo(CHRONOLOGY.date(year, month, leapMonth, day))).isZero();
+        assertThat(date.isBefore(sameDay.plusDays(1))).isTrue();
+        assertThat(date.isAfter(sameDay.minusDays(1))).isTrue();
+    }
+
+    @Test
+    void ordersDatesAcrossLeapMonthAndYearBoundaries() {
+        ChineseDate[][] boundaries = {
+                {CHRONOLOGY.date(2023, 2, 30), CHRONOLOGY.date(2023, 2, true, 1)},
+                {CHRONOLOGY.date(2023, 2, true, 29), CHRONOLOGY.date(2023, 3, 1)},
+                {CHRONOLOGY.date(2023, 12, 30), CHRONOLOGY.date(2024, 1, 1)},
+                {CHRONOLOGY.date(2024, 12, 29), CHRONOLOGY.date(2025, 1, 1)}
+        };
+        for (ChineseDate[] boundary : boundaries) {
+            ChineseDate before = boundary[0];
+            ChineseDate after = boundary[1];
+            assertThat(after.toEpochDay() - before.toEpochDay()).isEqualTo(1);
+            assertThat(before.compareTo(after)).isNegative();
+            assertThat(after.compareTo(before)).isPositive();
+            assertThat(before.isBefore(after)).isTrue();
+            assertThat(before.isAfter(after)).isFalse();
+            assertThat(after.isAfter(before)).isTrue();
+            assertThat(after.isBefore(before)).isFalse();
+            assertThat(before.isEqual(after)).isFalse();
+        }
     }
 
     @Test
