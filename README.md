@@ -1,8 +1,8 @@
 # Chinese Calendar 农历
 
-A Chinese calendar library built on Java's `java.time.chrono` API. By default, the data covers years 1900–2099
-in the Chinese calendar.  
-基于 Java `java.time.chrono` API 实现的中国农历日期库，默认农历数据覆盖农历 1900–2099 年。
+A Chinese calendar library integrated with Java's Date-Time API (`java.time.chrono`),
+with a default data range from January 31, 1900 to February 8, 2100 (Gregorian calendar).  
+与 Java 日期时间 API（`java.time.chrono`）集成的中国农历库。默认数据范围：公元 1900 年农历庚子年正月初一至公元 2099 年农历己未年腊月三十。
 
 ## Features 功能
 
@@ -16,6 +16,8 @@ in the Chinese calendar.
   基于 `Chronology`、`ChronoLocalDate` 的 Java Date-Time API 支持
 - Date arithmetic and calendar-specific periods<br>
   日期加减和农历日期间隔计算
+- Automatic `Chronology` discovery via SPI and lookup by ID or calendar type  
+  通过 SPI 自动发现历法，支持按 ID 或历法类型查找
 
 ### Planned Features 计划实现
 
@@ -29,8 +31,6 @@ in the Chinese calendar.
   生肖
 - Formatting and localized text for calendar dates  
   农历日期格式化和本地化文本
-- Automatic `Chronology` registration and lookup by name  
-  `Chronology` 自动注册与按名称查找
 
 ## Source of data 数据来源
 
