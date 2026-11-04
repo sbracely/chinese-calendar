@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.chrono.Chronology;
 import java.time.chrono.IsoEra;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.ResolverStyle;
@@ -31,6 +32,23 @@ class ChineseChronologyTest {
     void exposesConfiguredIdentity() {
         assertThat(CHRONOLOGY.getId()).isEqualTo("Chinese");
         assertThat(CHRONOLOGY.getCalendarType()).isEqualTo("chinese");
+    }
+
+    @Test
+    void discoversChronologyByIdAndCalendarType() {
+        for (String id : new String[]{"Chinese", "chinese"}) {
+            Chronology chronology = Chronology.of(id);
+            assertThat(chronology).isInstanceOf(ChineseChronology.class).isEqualTo(CHRONOLOGY);
+            assertThat(chronology.date(2023, 3, 1)).isEqualTo(CHRONOLOGY.date(2023, 3, 1));
+        }
+    }
+
+    @Test
+    void discoversChronologyFromLocaleAndAvailableChronologies() {
+        assertThat(Chronology.ofLocale(Locale.forLanguageTag("zh-CN-u-ca-chinese")))
+                .isInstanceOf(ChineseChronology.class)
+                .isEqualTo(CHRONOLOGY);
+        assertThat(Chronology.getAvailableChronologies()).contains(CHRONOLOGY);
     }
 
     @Test

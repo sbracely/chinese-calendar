@@ -118,6 +118,14 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
+     * Creates the default Chinese chronology for service loading.
+     * 创建用于服务加载的默认农历历法实例。
+     */
+    public ChineseChronology() {
+        this("Chinese", "chinese");
+    }
+
+    /**
      * Create a ChineseChronology for the named id and type.
      * 创建一个指定id和类型的 ChineseChronology 实例
      *
@@ -137,15 +145,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         }
         this.typeId = id;
         this.calendarType = calendarType;
-    }
-
-    /**
-     * Placeholder for registering this chronology with the JDK chronology provider.
-     * 预留用于将此历法注册到 JDK 历法提供程序的位置。
-     */
-    private static void registerCustomChrono() {
-
-        //TODO
     }
 
     //-----------------------------------------------------------------------
@@ -1374,7 +1373,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         if (ndx < 0) {
             ndx = -ndx - 2;
         }
-        // todo 最后3天相同？
         while (ndx + 1 < data.monthStartEpochDays.length
                 && data.monthStartEpochDays[ndx + 1] == epochDay) {
             ndx++;
@@ -1411,9 +1409,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     private int yearToEpochMonth(CalendarData data, int year) {
         return year * data.maximumMonthsInYear - data.epochMonthOffset;
     }
-
-
-    // todo 可优化？
 
     /**
      * Converts an epoch-month index to its month number, excluding the leap-month flag.
