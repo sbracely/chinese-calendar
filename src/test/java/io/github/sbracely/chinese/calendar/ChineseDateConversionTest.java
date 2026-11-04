@@ -9,8 +9,11 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.temporal.ChronoField;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAdjusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChineseDateConversionTest {
     private static final ChineseChronology CHRONOLOGY = ChineseChronology.INSTANCE;
@@ -28,6 +31,60 @@ class ChineseDateConversionTest {
                 .isEqualTo("Chinese 2025-06bis-01");
         assertThat(CHRONOLOGY.date(2023, 12, 30).toString())
                 .isEqualTo("Chinese 2023-12-30");
+    }
+
+    @Test
+    void adjustsWithStandardTemporalAdjusters() {
+        ChineseDate date = CHRONOLOGY.date(2023, 2, 10);
+
+        ChineseDate firstDayOfMonth = date.with(TemporalAdjusters.firstDayOfMonth());
+        ChineseDate lastDayOfMonth = date.with(TemporalAdjusters.lastDayOfMonth());
+        ChineseDate firstDayOfYear = date.with(TemporalAdjusters.firstDayOfYear());
+
+        assertThat(firstDayOfMonth).isEqualTo(CHRONOLOGY.date(2023, 2, 1));
+        assertThat(lastDayOfMonth).isEqualTo(CHRONOLOGY.date(2023, 2, date.lengthOfMonth()));
+        assertThat(firstDayOfYear).isEqualTo(CHRONOLOGY.dateYearDay(2023, 1));
+    }
+
+    @Test
+    void adjustsWithinLeapMonth() {
+        ChineseDate leapMonth = CHRONOLOGY.date(2017, 6, true, 10);
+
+        ChineseDate adjusted = leapMonth.with(TemporalAdjusters.lastDayOfMonth());
+
+        assertThat(adjusted)
+                .isEqualTo(CHRONOLOGY.date(2017, 6, true, leapMonth.lengthOfMonth()));
+        assertThat(adjusted.isLeapMonth()).isTrue();
+    }
+
+    @Test
+    void adjustsToYearBoundariesInLeapMonthYear() {
+        ChineseDate date = CHRONOLOGY.date(2017, 6, true, 10);
+
+        ChineseDate firstDayOfYear = date.with(TemporalAdjusters.firstDayOfYear());
+        ChineseDate lastDayOfYear = date.with(TemporalAdjusters.lastDayOfYear());
+
+        assertThat(firstDayOfYear).isEqualTo(CHRONOLOGY.dateYearDay(2017, 1));
+        assertThat(lastDayOfYear)
+                .isEqualTo(CHRONOLOGY.dateYearDay(2017, date.lengthOfYear()));
+        assertThat(lastDayOfYear.isLeapMonth()).isFalse();
+    }
+
+    @Test
+    void appliesCustomTemporalAdjusterAndPreservesChineseDateType() {
+        ChineseDate date = CHRONOLOGY.date(2023, 2, 10);
+
+        ChineseDate nextDay = date.with(temporal -> temporal.plus(1, ChronoUnit.DAYS));
+        ChineseDate unchanged = date.with(temporal -> temporal);
+
+        assertThat(nextDay).isEqualTo(CHRONOLOGY.date(2023, 2, 11));
+        assertThat(unchanged).isSameAs(date);
+    }
+
+    @Test
+    void rejectsNullTemporalAdjuster() {
+        assertThatThrownBy(() -> CHRONOLOGY.date(2023, 2, 10).with(null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test

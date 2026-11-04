@@ -1116,22 +1116,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * Gets the zero-based number of days preceding the specified month in its year.
-     * 获取指定月份之前的年内天数（从零开始计数）。
-     *
-     * @param prolepticYear the proleptic year
-     *                      历法年份
-     * @param month         the one-based month number
-     *                      从一开始计数的月份编号
-     * @return the number of days before the month
-     *         该月份之前的天数
-     */
-    int getDayOfYear(int prolepticYear, int month) {
-        CalendarData data = calendarData();
-        return yearMonthToDayOfYear(data, prolepticYear, (month - 1));
-    }
-
-    /**
      * Gets the length of a non-leap month.
      * 获取非闰月的天数。
      *
@@ -1352,25 +1336,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     private int epochMonthToEpochDay(CalendarData data, int epochMonth) {
         return data.monthStartEpochDays[epochMonth];
-    }
-
-    /**
-     * Gets the zero-based number of days preceding a month in its year.
-     * 获取指定月份之前的年内天数（从零开始计数）。
-     *
-     * @param data          the calendar data
-     *                      历法数据
-     * @param prolepticYear the proleptic year
-     *                      历法年份
-     * @param month         the zero-based month index within the year
-     *                      年内从零开始计数的月份索引
-     * @return the number of days before the month
-     *         该月份之前的天数
-     */
-    private int yearMonthToDayOfYear(CalendarData data, int prolepticYear, int month) {
-        int epochMonthFirst = yearToEpochMonth(data, prolepticYear);
-        return epochMonthToEpochDay(data, epochMonthFirst + month)
-                - epochMonthToEpochDay(data, epochMonthFirst);
     }
 
     /**

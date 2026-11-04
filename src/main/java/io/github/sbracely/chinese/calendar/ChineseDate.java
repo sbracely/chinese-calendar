@@ -59,6 +59,11 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     //-----------------------------------------------------------------------
 
     @Override
+    public ChineseDate with(TemporalAdjuster adjuster) {
+        return (ChineseDate) ChronoLocalDate.super.with(adjuster);
+    }
+
+    @Override
     public ChronoLocalDate with(TemporalField field, long newValue) {
         if (field instanceof ChronoField chronoField) {
             chronology.range(chronoField).checkValidValue(newValue, chronoField);
@@ -104,7 +109,8 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     }
 
     public int getDayOfYear() {
-        return chronology.getDayOfYear(prolepticYear, monthOfYear) + dayOfMonth;
+        long yearStart = chronology.getEpochDay(prolepticYear, 1, 1);
+        return Math.toIntExact(toEpochDay() - yearStart + 1);
     }
 
     public DayOfWeek getDayOfWeek() {
@@ -274,6 +280,18 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
 
     public ChineseDate plusMonths(long months) {
         return months == 0 ? this : ofEpochDay(chronology, chronology.epochDayAfterMonths(this, months));
+    }
+
+    @Override
+    public ValueRange range(TemporalField field) {
+        if (field instanceof ChronoField chronoField) {
+            return switch (chronoField) {
+                case DAY_OF_MONTH -> ValueRange.of(1, lengthOfMonth());
+                case DAY_OF_YEAR -> ValueRange.of(1, lengthOfYear());
+                default -> chronology.range(chronoField);
+            };
+        }
+        return field.rangeRefinedBy(this);
     }
 
     @Override
