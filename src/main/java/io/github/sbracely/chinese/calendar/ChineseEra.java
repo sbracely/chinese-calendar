@@ -5,6 +5,7 @@ import java.time.chrono.Era;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalField;
+import java.time.temporal.UnsupportedTemporalTypeException;
 import java.time.temporal.ValueRange;
 import java.util.Locale;
 
@@ -63,8 +64,8 @@ public enum ChineseEra implements Era {
      *         字段的有效范围
      * @throws NullPointerException if the field is {@code null}
      *                              如果字段为 {@code null}
-     * @throws java.time.temporal.UnsupportedTemporalTypeException if the field is unsupported
-     *                                                            如果字段不受支持
+     * @throws UnsupportedTemporalTypeException if the field is unsupported
+     *                                         如果字段不受支持
      */
     @Override
     public ValueRange range(TemporalField field) {

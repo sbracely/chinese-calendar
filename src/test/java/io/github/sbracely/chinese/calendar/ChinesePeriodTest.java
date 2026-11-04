@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.time.DateTimeException;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.Period;
@@ -128,7 +129,7 @@ class ChinesePeriodTest {
                 .isInstanceOf(DateTimeException.class);
         assertThatThrownBy(() -> period.minus(HijrahChronology.INSTANCE.period(1, 0, 0)))
                 .isInstanceOf(DateTimeException.class);
-        assertThatThrownBy(() -> period.plus(java.time.Duration.ofDays(1)))
+        assertThatThrownBy(() -> period.plus(Duration.ofDays(1)))
                 .isInstanceOf(DateTimeException.class);
         assertThatThrownBy(() -> period.plus(null)).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> period.addTo(null)).isInstanceOf(NullPointerException.class);

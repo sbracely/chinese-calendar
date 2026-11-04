@@ -11,11 +11,13 @@ import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.chrono.IsoEra;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalField;
 import java.time.temporal.ValueRange;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -263,12 +265,12 @@ class ChineseChronologyTest {
 
     @Test
     void parsesLeapMonthAndRejectsConflictingDayOfYear() {
-        var formatter = new java.time.format.DateTimeFormatterBuilder()
+        var formatter = new DateTimeFormatterBuilder()
                 .appendPattern("uuuu-MM-dd/")
                 .appendValue(ChineseTemporalField.IS_LEAP_MONTH)
                 .appendLiteral('/')
                 .appendValue(ChronoField.DAY_OF_YEAR)
-                .toFormatter(java.util.Locale.ROOT)
+                .toFormatter(Locale.ROOT)
                 .withChronology(CHRONOLOGY);
         for (ResolverStyle style : ResolverStyle.values()) {
             var resolver = formatter.withResolverStyle(style);
@@ -368,11 +370,11 @@ class ChineseChronologyTest {
     @Test
     void givesEpochDayPrecedenceAndFormatterChecksOtherFields() {
         ChineseDate expected = CHRONOLOGY.date(2023, 2, true, 1);
-        var formatter = new java.time.format.DateTimeFormatterBuilder()
+        var formatter = new DateTimeFormatterBuilder()
                 .appendValue(ChronoField.EPOCH_DAY).appendLiteral('/')
                 .appendPattern("uuuu-MM-dd/")
                 .appendValue(ChineseTemporalField.IS_LEAP_MONTH)
-                .toFormatter(java.util.Locale.ROOT).withChronology(CHRONOLOGY);
+                .toFormatter(Locale.ROOT).withChronology(CHRONOLOGY);
         for (ResolverStyle style : ResolverStyle.values()) {
             Map<TemporalField, Long> fields = new HashMap<>();
             fields.put(ChronoField.EPOCH_DAY, expected.toEpochDay());

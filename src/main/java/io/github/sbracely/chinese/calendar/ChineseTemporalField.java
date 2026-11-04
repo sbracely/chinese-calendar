@@ -1,5 +1,6 @@
 package io.github.sbracely.chinese.calendar;
 
+import java.time.DateTimeException;
 import java.time.temporal.*;
 import java.util.Locale;
 import java.util.Objects;
@@ -227,8 +228,8 @@ public enum ChineseTemporalField implements TemporalField {
      *                              如果时态对象为 {@code null}
      * @throws UnsupportedTemporalTypeException if the object is not a Chinese date
      *                                         如果对象不是农历日期
-     * @throws java.time.DateTimeException if the value is invalid or the leap month does not exist
-     *                                    如果数值无效或闰月不存在
+     * @throws DateTimeException if the value is invalid or the leap month does not exist
+     *                           如果数值无效或闰月不存在
      */
     @Override
     @SuppressWarnings("unchecked")

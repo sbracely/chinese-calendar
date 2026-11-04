@@ -4,6 +4,9 @@ import org.junit.jupiter.api.Test;
 
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.UnsupportedTemporalTypeException;
@@ -39,7 +42,7 @@ class ChineseTemporalFieldTest {
 
     @Test
     void rejectsNullArgumentsAndDateTimeObjects() {
-        var dateTime = CHRONOLOGY.date(2023, 2, true, 1).atTime(java.time.LocalTime.NOON);
+        var dateTime = CHRONOLOGY.date(2023, 2, true, 1).atTime(LocalTime.NOON);
         for (ChineseTemporalField field : ChineseTemporalField.values()) {
             assertThatThrownBy(() -> field.getDisplayName(null)).isInstanceOf(NullPointerException.class);
             assertThatThrownBy(() -> field.isSupportedBy(null)).isInstanceOf(NullPointerException.class);
@@ -54,7 +57,7 @@ class ChineseTemporalFieldTest {
 
     @Test
     void formatsAndParsesOrdinalMonthWithLeapFlag() {
-        var formatter = new java.time.format.DateTimeFormatterBuilder()
+        var formatter = new DateTimeFormatterBuilder()
                 .appendValue(ChronoField.YEAR).appendLiteral('/')
                 .appendValue(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR).appendLiteral('/')
                 .appendValue(ChronoField.DAY_OF_MONTH).appendLiteral('/')
@@ -63,7 +66,7 @@ class ChineseTemporalFieldTest {
         for (ChineseDate date : new ChineseDate[]{
                 CHRONOLOGY.date(2023, 2, 1), CHRONOLOGY.date(2023, 2, true, 1),
                 CHRONOLOGY.date(2023, 3, 1), CHRONOLOGY.date(2024, 12, 29)}) {
-            for (java.time.format.ResolverStyle style : java.time.format.ResolverStyle.values()) {
+            for (ResolverStyle style : ResolverStyle.values()) {
                 ChineseDate restored = formatter.withResolverStyle(style).parse(date.format(formatter), CHRONOLOGY::date);
                 assertThat(restored).isEqualTo(date);
                 assertThat(restored.isLeapMonth()).isEqualTo(date.isLeapMonth());
