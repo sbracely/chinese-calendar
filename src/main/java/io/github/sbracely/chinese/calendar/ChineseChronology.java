@@ -114,7 +114,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     //-----------------------------------------------------------------------
 
     static {
-        INSTANCE = new ChineseChronology("Chinese", "chinese");
+        INSTANCE = new ChineseChronology();
     }
 
     /**
@@ -133,16 +133,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                     日历的 id
      * @param calendarType the typeId of the calendar
      *                     日历的类型 id
-     * @throws IllegalArgumentException if the id or typeId is empty
-     *                                  如果 id 或 typeId 为空，则抛出此异常
      */
     private ChineseChronology(String id, String calendarType) {
-        if (null == id || id.isEmpty()) {
-            throw new IllegalArgumentException("calendar id is empty");
-        }
-        if (null == calendarType || calendarType.isEmpty()) {
-            throw new IllegalArgumentException("calendar typeId is empty");
-        }
         this.typeId = id;
         this.calendarType = calendarType;
     }
