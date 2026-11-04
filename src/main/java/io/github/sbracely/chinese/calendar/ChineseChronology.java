@@ -870,13 +870,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * A record to hold the parsed month lengths and leap month index for a given year.
-     * 用于保存给定年份的解析后的月份长度和闰月索引
-     *
-     * @param monthLengths 月份长度数组
-     * @param leapMonth    闰月索引
-     */
-    /**
      * The parsed month lengths and leap-month number for one year.
      * 某一年的月份天数和闰月编号。
      *
@@ -1323,6 +1316,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
 
 
     // todo 可优化？
+
     /**
      * Converts an epoch-month index to its month number, excluding the leap-month flag.
      * 将纪元月份索引转换为月份编号，不包含闰月标志。
@@ -1512,41 +1506,12 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     /**
      * Serialization proxy for a Chinese chronology.
      * 农历历法的序列化代理对象。
+     * @param typeId the chronology identifier to restore.
+     *               要恢复的历法标识符。
+     * @param calendarType the calendar type to restore.
+     *                     要恢复的日历类型。
      */
-    private static final class Ser implements Serializable {
-        /**
-         * The serialization version identifier.
-         * 序列化版本标识符。
-         */
-        @Serial
-        private static final long serialVersionUID = 1L;
-
-        /**
-         * The chronology identifier to restore.
-         * 要恢复的历法标识符。
-         */
-        private final String typeId;
-
-        /**
-         * The calendar type to restore.
-         * 要恢复的日历类型。
-         */
-        private final String calendarType;
-
-        /**
-         * Creates a serialization proxy for the specified chronology.
-         * 为指定历法创建序列化代理对象。
-         *
-         * @param typeId       the chronology identifier
-         *                     历法标识符
-         * @param calendarType the calendar type
-         *                     日历类型
-         */
-        private Ser(String typeId, String calendarType) {
-            this.typeId = typeId;
-            this.calendarType = calendarType;
-        }
-
+    private record Ser(String typeId, String calendarType) implements Serializable {
         /**
          * Resolves the proxy to the chronology singleton.
          * 将代理对象解析为历法单例。
