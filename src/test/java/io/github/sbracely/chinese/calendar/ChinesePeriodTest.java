@@ -43,6 +43,36 @@ class ChinesePeriodTest {
     }
 
     @Test
+    void chainsOperationsWithChineseSpecificReturnTypes() {
+        ChinesePeriod period = CHRONOLOGY.period(1, 13, -3)
+                .plus(CHRONOLOGY.period(-1, 0, 3))
+                .minus(CHRONOLOGY.period(0, 1, 0))
+                .negated()
+                .normalized();
+        ChineseChronology chronology = period.getChronology();
+
+        assertThat(period).isEqualTo(CHRONOLOGY.period(0, -12, 0));
+        assertThat(chronology).isSameAs(CHRONOLOGY);
+    }
+
+    @Test
+    void appliesMixedSignsAcrossLeapMonthAndYearClipping() {
+        ChineseDate leapMonthEnd = CHRONOLOGY.date(2023, 2, true, 29);
+        ChinesePeriod period = CHRONOLOGY.period(1, -1, 2);
+
+        assertThat(period.addTo(leapMonthEnd))
+                .isEqualTo(CHRONOLOGY.date(2024, 1, 29).plusDays(2));
+        assertThat(period.subtractFrom(leapMonthEnd))
+                .isEqualTo(CHRONOLOGY.date(2022, 3, 27));
+        ChineseDate endOfYear = CHRONOLOGY.date(2023, 12, 30);
+        ChinesePeriod year = CHRONOLOGY.period(1, 0, 0);
+        assertThat(year.subtractFrom(year.addTo(endOfYear)))
+                .isNotEqualTo(endOfYear);
+        assertThatThrownBy(() -> new ChinesePeriod(null, 0, 0, 0))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     void serializesAndDeserializes() throws Exception {
         ChinesePeriod period = CHRONOLOGY.period(1, 2, 3);
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
