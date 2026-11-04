@@ -1053,32 +1053,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * Checks that the day-of-year is within the valid range.
-     * 检查年内日期是否在有效范围内。
-     *
-     * @param dayOfYear the day of the year to validate
-     *                  要验证的年内日期
-     * @throws DateTimeException if the day-of-year is outside the valid range
-     *                           如果年内日期超出有效范围，则抛出此异常
-     */
-    void checkValidDayOfYear(long dayOfYear) {
-        range(ChronoField.DAY_OF_YEAR).checkValidValue(dayOfYear, ChronoField.DAY_OF_YEAR);
-    }
-
-    /**
-     * Checks that the month is within the valid range.
-     * 检查月份是否在有效范围内。
-     *
-     * @param month the month to validate
-     *              要验证的月份
-     * @throws DateTimeException if the month is outside the valid range
-     *                           如果月份超出有效范围，则抛出此异常
-     */
-    void checkValidMonth(int month) {
-        range(ChronoField.MONTH_OF_YEAR).checkValidValue(month, ChronoField.MONTH_OF_YEAR);
-    }
-
-    /**
      * Gets the year, month, day, and leap-month flag for an epoch day.
      * 根据纪元天数获取年份、月份、日期和闰月标志。
      *
@@ -1108,25 +1082,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         dateInfo[2] = date + 1; // change to 1-based.
         dateInfo[3] = leapMonth ? 1 : 0;
         return dateInfo;
-    }
-
-    /**
-     * Converts a non-leap Chinese date to an epoch day.
-     * 将非闰月的农历日期转换为纪元天数。
-     *
-     * @param prolepticYear the proleptic year
-     *                      历法年份
-     * @param monthOfYear   the month of the year
-     *                      年中的月份
-     * @param dayOfMonth    the day of the month
-     *                      月中的日期
-     * @return the corresponding epoch day
-     *         对应的纪元天数
-     * @throws DateTimeException if the date is invalid or outside the supported range
-     *                           如果日期无效或超出支持范围
-     */
-    long getEpochDay(int prolepticYear, int monthOfYear, int dayOfMonth) {
-        return getEpochDay(prolepticYear, monthOfYear, false, dayOfMonth);
     }
 
     /**
@@ -1161,23 +1116,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
             throw new DateTimeException("Invalid Chinese day of month: " + dayOfMonth);
         }
         return epochMonthToEpochDay(data, epochMonth) + (dayOfMonth - 1);
-    }
-
-    /**
-     * Gets the length of a non-leap month.
-     * 获取非闰月的天数。
-     *
-     * @param prolepticYear the proleptic year
-     *                      历法年份
-     * @param monthOfYear   the month of the year
-     *                      年中的月份
-     * @return the number of days in the month
-     *         月份天数
-     * @throws DateTimeException if the computed month index is outside the calendar data
-     *                           如果计算出的月份索引超出历法数据范围
-     */
-    int getMonthLength(int prolepticYear, int monthOfYear) {
-        return getMonthLength(prolepticYear, monthOfYear, false);
     }
 
     /**
@@ -1297,6 +1235,19 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     // Private date conversion helpers
     // 私有日期转换辅助方法
     //-----------------------------------------------------------------------
+
+    /**
+     * Checks that the month is within the valid range.
+     * 检查月份是否在有效范围内。
+     *
+     * @param month the month to validate
+     *              要验证的月份
+     * @throws DateTimeException if the month is outside the valid range
+     *                           如果月份超出有效范围，则抛出此异常
+     */
+    private void checkValidMonth(int month) {
+        range(ChronoField.MONTH_OF_YEAR).checkValidValue(month, ChronoField.MONTH_OF_YEAR);
+    }
 
     /**
      * Finds the epoch-month index containing the specified epoch day.

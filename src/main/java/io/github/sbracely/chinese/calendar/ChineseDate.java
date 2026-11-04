@@ -306,7 +306,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *         从一开始计数的年内日序
      */
     public int getDayOfYear() {
-        long yearStart = chronology.getEpochDay(prolepticYear, 1, 1);
+        long yearStart = chronology.getEpochDay(prolepticYear, 1, false, 1);
         return Math.toIntExact(toEpochDay() - yearStart + 1);
     }
 
