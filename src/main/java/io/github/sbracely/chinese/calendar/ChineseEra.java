@@ -23,11 +23,29 @@ public enum ChineseEra implements Era {
      */
     CHINESE_ERA;
 
+    /**
+     * Gets the value of the sole Chinese era.
+     * 获取唯一农历纪元的数值。
+     *
+     * @return the era value, always {@code 1}
+     *         纪元值，始终为 {@code 1}
+     */
     @Override
     public int getValue() {
         return 1;
     }
 
+    /**
+     * Obtains the Chinese era from its numeric value.
+     * 根据数值获取农历纪元。
+     *
+     * @param eraValue the era value, which must be {@code 1}
+     *                 纪元值，必须为 {@code 1}
+     * @return the sole Chinese era
+     *         唯一的农历纪元
+     * @throws DateTimeException if the value is not {@code 1}
+     *                           如果数值不是 {@code 1}
+     */
     public static ChineseEra of(int eraValue) {
         if (eraValue == CHINESE_ERA.getValue()) {
             return CHINESE_ERA;
@@ -35,6 +53,19 @@ public enum ChineseEra implements Era {
         throw new DateTimeException("Invalid Chinese era: " + eraValue);
     }
 
+    /**
+     * Gets the range of a field, restricting {@code ERA} to the sole Chinese era.
+     * 获取字段范围，将 {@code ERA} 限制为唯一的农历纪元。
+     *
+     * @param field the field to query
+     *              要查询的字段
+     * @return the valid field range
+     *         字段的有效范围
+     * @throws NullPointerException if the field is {@code null}
+     *                              如果字段为 {@code null}
+     * @throws java.time.temporal.UnsupportedTemporalTypeException if the field is unsupported
+     *                                                            如果字段不受支持
+     */
     @Override
     public ValueRange range(TemporalField field) {
         if (field == ChronoField.ERA) {
@@ -42,8 +73,6 @@ public enum ChineseEra implements Era {
         }
         return Era.super.range(field);
     }
-
-
     /**
      * Returns the localized calendar name as the display name of this placeholder era.
      * 返回本地化历法名称，作为此占位纪元的显示名称。
@@ -54,6 +83,8 @@ public enum ChineseEra implements Era {
      *               使用的语言环境，不为 null
      * @return the display name, not null
      * 显示名称，不为 null
+     * @throws NullPointerException if the style or locale is {@code null}
+     *                              如果文本样式或语言环境为 {@code null}
      */
     @Override
     public String getDisplayName(TextStyle style, Locale locale) {
