@@ -11,7 +11,6 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.chrono.ChronoLocalDate;
 import java.time.chrono.ChronoPeriod;
-import java.time.chrono.Chronology;
 import java.time.temporal.*;
 import java.util.Objects;
 
@@ -249,7 +248,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *         历法
      */
     @Override
-    public Chronology getChronology() {
+    public ChineseChronology getChronology() {
         return chronology;
     }
 
@@ -389,7 +388,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *                           如果字段值或结果日期无效
      */
     @Override
-    public ChronoLocalDate with(TemporalField field, long newValue) {
+    public ChineseDate with(TemporalField field, long newValue) {
         if (field instanceof ChronoField chronoField) {
             if (!isSupported(chronoField)) {
                 throw new UnsupportedTemporalTypeException("Unsupported field: " + field);
@@ -433,7 +432,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                 }
             };
         }
-        return ChronoLocalDate.super.with(field, newValue);
+        return (ChineseDate) ChronoLocalDate.super.with(field, newValue);
     }
 
     /**
@@ -506,7 +505,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                 case DECADES -> plusYears(Math.multiplyExact(amountToAdd, 10));
                 case CENTURIES -> plusYears(Math.multiplyExact(amountToAdd, 100));
                 case MILLENNIA -> plusYears(Math.multiplyExact(amountToAdd, 1000));
-                case ERAS -> (ChineseDate) with(ERA, Math.addExact(getLong(ERA), amountToAdd));
+                case ERAS -> with(ERA, Math.addExact(getLong(ERA), amountToAdd));
                 default -> throw new UnsupportedTemporalTypeException("Unsupported unit: " + unit);
             };
         }

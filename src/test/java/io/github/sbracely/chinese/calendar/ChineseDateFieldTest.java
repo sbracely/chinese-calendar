@@ -13,6 +13,17 @@ class ChineseDateFieldTest {
     private static final ChineseChronology CHRONOLOGY = ChineseChronology.INSTANCE;
 
     @Test
+    void chainsFieldAdjustmentsWithChineseSpecificReturnTypes() {
+        ChineseDate adjusted = CHRONOLOGY.date(2023, 2, 10)
+                .with(ChineseTemporalField.IS_LEAP_MONTH, 1)
+                .with(ChronoField.DAY_OF_MONTH, 1);
+        ChineseChronology chronology = adjusted.getChronology();
+
+        assertThat(adjusted).isEqualTo(CHRONOLOGY.date(2023, 2, true, 1));
+        assertThat(chronology).isSameAs(CHRONOLOGY);
+    }
+
+    @Test
     void preservesSupportedFieldContractsAcrossCommonAndLeapYears() {
         for (int year : new int[]{2023, 2024}) {
             ChineseDate first = CHRONOLOGY.date(year, 1, 1);
