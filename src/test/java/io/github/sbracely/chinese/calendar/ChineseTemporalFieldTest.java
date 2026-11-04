@@ -38,6 +38,40 @@ class ChineseTemporalFieldTest {
     }
 
     @Test
+    void rejectsNullArgumentsAndDateTimeObjects() {
+        var dateTime = CHRONOLOGY.date(2023, 2, true, 1).atTime(java.time.LocalTime.NOON);
+        for (ChineseTemporalField field : ChineseTemporalField.values()) {
+            assertThatThrownBy(() -> field.getDisplayName(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> field.isSupportedBy(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> field.rangeRefinedBy(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> field.getFrom(null)).isInstanceOf(NullPointerException.class);
+            assertThatThrownBy(() -> field.adjustInto(null, 0)).isInstanceOf(NullPointerException.class);
+            assertThat(field.isSupportedBy(dateTime)).isFalse();
+            assertThatThrownBy(() -> field.getFrom(dateTime))
+                    .isInstanceOf(UnsupportedTemporalTypeException.class);
+        }
+    }
+
+    @Test
+    void formatsAndParsesOrdinalMonthWithLeapFlag() {
+        var formatter = new java.time.format.DateTimeFormatterBuilder()
+                .appendValue(ChronoField.YEAR).appendLiteral('/')
+                .appendValue(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR).appendLiteral('/')
+                .appendValue(ChronoField.DAY_OF_MONTH).appendLiteral('/')
+                .appendValue(ChineseTemporalField.IS_LEAP_MONTH)
+                .toFormatter(Locale.ROOT).withChronology(CHRONOLOGY);
+        for (ChineseDate date : new ChineseDate[]{
+                CHRONOLOGY.date(2023, 2, 1), CHRONOLOGY.date(2023, 2, true, 1),
+                CHRONOLOGY.date(2023, 3, 1), CHRONOLOGY.date(2024, 12, 29)}) {
+            for (java.time.format.ResolverStyle style : java.time.format.ResolverStyle.values()) {
+                ChineseDate restored = formatter.withResolverStyle(style).parse(date.format(formatter), CHRONOLOGY::date);
+                assertThat(restored).isEqualTo(date);
+                assertThat(restored.isLeapMonth()).isEqualTo(date.isLeapMonth());
+            }
+        }
+    }
+
+    @Test
     void identifiesAsDateBasedFields() {
         assertThat(ChineseTemporalField.values())
                 .allSatisfy(field -> {
