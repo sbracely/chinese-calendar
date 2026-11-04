@@ -24,11 +24,6 @@ import static io.github.sbracely.chinese.calendar.ChineseEra.CHINESE_ERA;
  */
 public final class ChineseChronology extends AbstractChronology implements Serializable {
 
-    //-----------------------------------------------------------------------
-    // Constants
-    // 常量
-    //-----------------------------------------------------------------------
-
     /**
      * The base name of the resource bundle containing localized calendar names.
      * 包含本地化历法名称的资源包基础名称。
@@ -89,21 +84,11 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     private static final String LEAP_PREFIX = "leap";
 
-    //-----------------------------------------------------------------------
-    // Singleton instance
-    // 单例实例
-    //-----------------------------------------------------------------------
-
     /**
      * The singleton instance of the ChineseChronology.
      * 单例实例
      */
     public static final ChineseChronology INSTANCE;
-
-    //-----------------------------------------------------------------------
-    // Instance fields
-    // 实例字段
-    //-----------------------------------------------------------------------
 
     /**
      * The Chinese calendar id.

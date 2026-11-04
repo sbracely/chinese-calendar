@@ -22,11 +22,6 @@ import static java.time.temporal.ChronoField.*;
  */
 public final class ChineseDate implements ChronoLocalDate, Serializable {
 
-    //-----------------------------------------------------------------------
-    // Serialization version
-    // 序列化版本
-    //-----------------------------------------------------------------------
-
     /**
      * The serialization version identifier.
      * 序列化版本标识符。

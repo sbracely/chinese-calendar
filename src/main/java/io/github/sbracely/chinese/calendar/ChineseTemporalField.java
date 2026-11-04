@@ -65,11 +65,6 @@ public enum ChineseTemporalField implements TemporalField {
         this.range = range;
     }
 
-    //-----------------------------------------------------------------------
-    // Override methods from TemporalField
-    // 重写 TemporalField 接口中的方法
-    //-----------------------------------------------------------------------
-
     /**
      * Gets the field name, currently identical for all locales.
      * 获取字段名称，目前所有语言环境返回相同名称。
