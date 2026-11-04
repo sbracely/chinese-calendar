@@ -771,6 +771,11 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * In lenient year-month-day resolution, month overflow uses twelve named months per year;
      * day overflow follows the timeline through any leap months.
      * 宽松解析年月日时，月份溢出按每年十二个命名月份处理；日期溢出沿时间线经过闰月。
+     * {@code MONTH_AS_ORDINAL_OF_YEAR} counts leap months separately; in lenient mode
+     * its overflow follows actual chronological months.
+     * {@code MONTH_AS_ORDINAL_OF_YEAR} 将闰月单独计数，宽松模式下按实际月份顺序处理溢出。
+     * An epoch day takes precedence; remaining fields are cross-checked by the formatter.
+     * 纪元天数优先解析，剩余字段由格式化器进行交叉校验。
      *
      * @param fieldValues the parsed field values
      *                    已解析的字段值
@@ -784,10 +789,15 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     @Override
     public ChineseDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
         Objects.requireNonNull(resolverStyle, "resolverStyle");
-        if (fieldValues.containsKey(ChronoField.MONTH_OF_YEAR)
+        if (fieldValues.containsKey(ChronoField.EPOCH_DAY)) {
+            return (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
+        }
+        if ((fieldValues.containsKey(ChronoField.MONTH_OF_YEAR)
+                || fieldValues.containsKey(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR))
                 && fieldValues.containsKey(ChronoField.DAY_OF_MONTH)
                 && (resolverStyle == ResolverStyle.LENIENT
-                || fieldValues.containsKey(ChineseTemporalField.IS_LEAP_MONTH))) {
+                || fieldValues.containsKey(ChineseTemporalField.IS_LEAP_MONTH)
+                || fieldValues.containsKey(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR))) {
             Map<TemporalField, Long> yearFields = new HashMap<>();
             for (ChronoField field : new ChronoField[]{
                     ChronoField.YEAR, ChronoField.YEAR_OF_ERA, ChronoField.ERA}) {
@@ -799,8 +809,30 @@ public final class ChineseChronology extends AbstractChronology implements Seria
             Long resolvedYear = yearFields.get(ChronoField.YEAR);
             if (resolvedYear != null) {
                 int year = range(ChronoField.YEAR).checkValidIntValue(resolvedYear, ChronoField.YEAR);
-                long month = fieldValues.get(ChronoField.MONTH_OF_YEAR);
                 long day = fieldValues.get(ChronoField.DAY_OF_MONTH);
+                Long ordinal = fieldValues.get(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR);
+                if (ordinal != null) {
+                    ChineseDate first = date(year, 1, 1);
+                    if (resolverStyle != ResolverStyle.LENIENT) {
+                        first.range(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR)
+                                .checkValidValue(ordinal, ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR);
+                        range(ChronoField.DAY_OF_MONTH).checkValidValue(day, ChronoField.DAY_OF_MONTH);
+                    }
+                    first = first.plusMonths(Math.subtractExact(ordinal, 1));
+                    ChineseDate result = resolverStyle == ResolverStyle.LENIENT
+                            ? first.plusDays(Math.subtractExact(day, 1))
+                            : date(first.prolepticYear(), first.monthOfYear(), first.isLeapMonth(),
+                            Math.toIntExact(resolverStyle == ResolverStyle.SMART
+                                    ? Math.min(day, first.lengthOfMonth()) : day));
+                    fieldValues.remove(ChronoField.YEAR);
+                    fieldValues.remove(ChronoField.YEAR_OF_ERA);
+                    fieldValues.remove(ChronoField.ERA);
+                    fieldValues.remove(ChronoField.DAY_OF_MONTH);
+                    fieldValues.remove(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR);
+                    checkResolvedFields(fieldValues, result);
+                    return result;
+                }
+                long month = fieldValues.get(ChronoField.MONTH_OF_YEAR);
                 Long leapValue = fieldValues.get(ChineseTemporalField.IS_LEAP_MONTH);
                 boolean leap = leapValue != null
                         && ChineseTemporalField.IS_LEAP_MONTH.range()
@@ -829,10 +861,35 @@ public final class ChineseChronology extends AbstractChronology implements Seria
                 fieldValues.remove(ChronoField.MONTH_OF_YEAR);
                 fieldValues.remove(ChronoField.DAY_OF_MONTH);
                 fieldValues.remove(ChineseTemporalField.IS_LEAP_MONTH);
+                checkResolvedFields(fieldValues, result);
                 return result;
             }
         }
         return (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
+    }
+
+    /**
+     * Checks and consumes remaining fields supported by a resolved date.
+     * 校验并移除已解析日期所支持的剩余字段。
+     *
+     * @param fields the remaining parsed fields
+     *               剩余的已解析字段
+     * @param date the resolved date
+     *             已解析日期
+     * @throws DateTimeException if a remaining field conflicts with the date
+     *                           如果剩余字段与日期冲突
+     */
+    private void checkResolvedFields(Map<TemporalField, Long> fields, ChineseDate date) {
+        var iterator = fields.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<TemporalField, Long> entry = iterator.next();
+            if (date.isSupported(entry.getKey())) {
+                if (date.getLong(entry.getKey()) != entry.getValue()) {
+                    throw new DateTimeException("Conflict found: " + entry.getKey());
+                }
+                iterator.remove();
+            }
+        }
     }
 
     //-----------------------------------------------------------------------

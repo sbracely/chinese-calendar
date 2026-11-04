@@ -25,7 +25,9 @@ class ChineseDateFieldTest {
 
     @Test
     void preservesSupportedFieldContractsAcrossCommonAndLeapYears() {
-        for (int year : new int[]{2023, 2024}) {
+        int minimumYear = (int) CHRONOLOGY.range(ChronoField.YEAR).getMinimum();
+        int maximumYear = (int) CHRONOLOGY.range(ChronoField.YEAR).getMaximum();
+        for (int year = minimumYear; year <= maximumYear; year++) {
             ChineseDate first = CHRONOLOGY.date(year, 1, 1);
             for (int day = 1; day <= first.lengthOfYear(); day++) {
                 ChineseDate date = first.plusDays(day - 1);
