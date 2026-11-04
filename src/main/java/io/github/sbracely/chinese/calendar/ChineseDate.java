@@ -391,6 +391,9 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     @Override
     public ChronoLocalDate with(TemporalField field, long newValue) {
         if (field instanceof ChronoField chronoField) {
+            if (!isSupported(chronoField)) {
+                throw new UnsupportedTemporalTypeException("Unsupported field: " + field);
+            }
             chronology.range(chronoField).checkValidValue(newValue, chronoField);
             return switch (chronoField) {
                 case DAY_OF_WEEK -> plusDays(newValue - getDayOfWeek().getValue());
@@ -613,9 +616,13 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     @Override
     public ValueRange range(TemporalField field) {
         if (field instanceof ChronoField chronoField) {
+            if (!isSupported(chronoField)) {
+                throw new UnsupportedTemporalTypeException("Unsupported field: " + field);
+            }
             return switch (chronoField) {
                 case DAY_OF_MONTH -> ValueRange.of(1, lengthOfMonth());
                 case DAY_OF_YEAR -> ValueRange.of(1, lengthOfYear());
+                case ALIGNED_WEEK_OF_YEAR -> ValueRange.of(1, (lengthOfYear() + 6) / 7);
                 default -> chronology.range(chronoField);
             };
         }
@@ -693,7 +700,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
             return switch (chronoField) {
                 case DAY_OF_WEEK -> getDayOfWeek().getValue();
                 case ALIGNED_DAY_OF_WEEK_IN_MONTH -> (dayOfMonth - 1) % 7 + 1;
-                case ALIGNED_DAY_OF_WEEK_IN_YEAR -> 0L;
+                case ALIGNED_DAY_OF_WEEK_IN_YEAR -> (getDayOfYear() - 1) % 7 + 1;
                 case DAY_OF_MONTH -> dayOfMonth;
                 case DAY_OF_YEAR -> getDayOfYear();
                 case EPOCH_DAY -> toEpochDay();

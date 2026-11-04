@@ -329,8 +329,13 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      年
      * @return the leap month, or 0 if there is no leap month
      * 闰月月份，如果没有闰月则为 0
+     * Years outside the configured data also return 0.
+     * 配置数据范围之外的年份也返回 0。
      */
     public int getLeapMonth(long prolepticYear) {
+        if (!range(ChronoField.YEAR).isValidValue(prolepticYear)) {
+            return 0;
+        }
         return calendarData().leapMonthByYear.getOrDefault((int) prolepticYear, 0);
     }
 
@@ -627,9 +632,14 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      要检查的历法年份
      * @return {@code true} if the year contains a leap month
      *         如果该年份包含闰月则返回 {@code true}
+     *         Years outside the configured data return {@code false}.
+     *         配置数据范围之外的年份返回 {@code false}。
      */
     @Override
     public boolean isLeapYear(long prolepticYear) {
+        if (!range(ChronoField.YEAR).isValidValue(prolepticYear)) {
+            return false;
+        }
         return calendarData().leapMonthByYear.containsKey((int) prolepticYear);
     }
 
@@ -699,6 +709,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         return switch (field) {
             case DAY_OF_MONTH -> ValueRange.of(1, data.minimumDaysInMonth, data.maximumDaysInMonth);
             case DAY_OF_YEAR -> ValueRange.of(1, data.minimumDaysInYear, data.maximumDaysInYear);
+            case ALIGNED_WEEK_OF_YEAR ->
+                    ValueRange.of(1, (data.minimumDaysInYear + 6) / 7, (data.maximumDaysInYear + 6) / 7);
             case YEAR, YEAR_OF_ERA -> ValueRange.of(data.minimumYear, data.maximumYear);
             case ERA -> ValueRange.of(CHINESE_ERA.getValue(), CHINESE_ERA.getValue());
             default -> field.range();
@@ -754,6 +766,11 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     /**
      * Resolves parsed date fields into a Chinese date.
      * 将解析后的日期字段解析为农历日期。
+     * Month numbers identify regular months unless {@code IS_LEAP_MONTH} is set to 1.
+     * 月份编号表示普通月，除非 {@code IS_LEAP_MONTH} 被设为 1。
+     * In lenient year-month-day resolution, month overflow uses twelve named months per year;
+     * day overflow follows the timeline through any leap months.
+     * 宽松解析年月日时，月份溢出按每年十二个命名月份处理；日期溢出沿时间线经过闰月。
      *
      * @param fieldValues the parsed field values
      *                    已解析的字段值
@@ -766,6 +783,55 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     @Override
     public ChineseDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
+        Objects.requireNonNull(resolverStyle, "resolverStyle");
+        if (fieldValues.containsKey(ChronoField.MONTH_OF_YEAR)
+                && fieldValues.containsKey(ChronoField.DAY_OF_MONTH)
+                && (resolverStyle == ResolverStyle.LENIENT
+                || fieldValues.containsKey(ChineseTemporalField.IS_LEAP_MONTH))) {
+            Map<TemporalField, Long> yearFields = new HashMap<>();
+            for (ChronoField field : new ChronoField[]{
+                    ChronoField.YEAR, ChronoField.YEAR_OF_ERA, ChronoField.ERA}) {
+                if (fieldValues.containsKey(field)) {
+                    yearFields.put(field, fieldValues.get(field));
+                }
+            }
+            super.resolveDate(yearFields, resolverStyle);
+            Long resolvedYear = yearFields.get(ChronoField.YEAR);
+            if (resolvedYear != null) {
+                int year = range(ChronoField.YEAR).checkValidIntValue(resolvedYear, ChronoField.YEAR);
+                long month = fieldValues.get(ChronoField.MONTH_OF_YEAR);
+                long day = fieldValues.get(ChronoField.DAY_OF_MONTH);
+                Long leapValue = fieldValues.get(ChineseTemporalField.IS_LEAP_MONTH);
+                boolean leap = leapValue != null
+                        && ChineseTemporalField.IS_LEAP_MONTH.range()
+                        .checkValidIntValue(leapValue, ChineseTemporalField.IS_LEAP_MONTH) == 1;
+                ChineseDate result;
+                if (resolverStyle == ResolverStyle.LENIENT) {
+                    // Month numbers name regular months; leap months are selected explicitly.
+                    // 月份编号表示普通月，闰月须显式指定。
+                    long yearOffset = Math.floorDiv(Math.subtractExact(month, 1), 12);
+                    int targetYear = range(ChronoField.YEAR).checkValidIntValue(
+                            Math.addExact(year, yearOffset), ChronoField.YEAR);
+                    int targetMonth = (int) Math.floorMod(Math.subtractExact(month, 1), 12) + 1;
+                    result = date(targetYear, targetMonth, leap, 1).plusDays(Math.subtractExact(day, 1));
+                } else {
+                    int validMonth = range(ChronoField.MONTH_OF_YEAR)
+                            .checkValidIntValue(month, ChronoField.MONTH_OF_YEAR);
+                    int validDay = range(ChronoField.DAY_OF_MONTH)
+                            .checkValidIntValue(day, ChronoField.DAY_OF_MONTH);
+                    ChineseDate first = date(year, validMonth, leap, 1);
+                    result = date(year, validMonth, leap, resolverStyle == ResolverStyle.SMART
+                            ? Math.min(validDay, first.lengthOfMonth()) : validDay);
+                }
+                fieldValues.remove(ChronoField.YEAR);
+                fieldValues.remove(ChronoField.YEAR_OF_ERA);
+                fieldValues.remove(ChronoField.ERA);
+                fieldValues.remove(ChronoField.MONTH_OF_YEAR);
+                fieldValues.remove(ChronoField.DAY_OF_MONTH);
+                fieldValues.remove(ChineseTemporalField.IS_LEAP_MONTH);
+                return result;
+            }
+        }
         return (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
     }
 

@@ -144,6 +144,18 @@ class ChineseChronologyTest {
     }
 
     @Test
+    void doesNotWrapLongYearsIntoSupportedLeapYears() {
+        long minimumYear = CHRONOLOGY.range(ChronoField.YEAR).getMinimum();
+        long maximumYear = CHRONOLOGY.range(ChronoField.YEAR).getMaximum();
+        for (long year : new long[]{minimumYear - 1, maximumYear + 1,
+                2023L + (1L << 32), 2023L - (1L << 32),
+                Long.MIN_VALUE, Long.MAX_VALUE}) {
+            assertThat(CHRONOLOGY.isLeapYear(year)).as("year %s", year).isFalse();
+            assertThat(CHRONOLOGY.getLeapMonth(year)).as("year %s", year).isZero();
+        }
+    }
+
+    @Test
     void rejectsUnsupportedEra() {
         assertThatThrownBy(() -> CHRONOLOGY.prolepticYear(IsoEra.CE, 2024))
                 .isInstanceOf(ClassCastException.class)
@@ -178,6 +190,107 @@ class ChineseChronologyTest {
 
         assertChineseDate(resolved, 2024, 1, false, 1);
         assertThat(fields).isEmpty();
+    }
+
+    @Test
+    void resolvesDayOfYearAcrossLeapMonthInEveryResolverStyle() {
+        for (ResolverStyle style : ResolverStyle.values()) {
+            for (ChineseDate expected : new ChineseDate[]{
+                    CHRONOLOGY.date(2023, 2, true, 1),
+                    CHRONOLOGY.date(2023, 3, 1),
+                    CHRONOLOGY.date(2024, 12, 29)}) {
+                Map<TemporalField, Long> fields = new HashMap<>();
+                fields.put(ChronoField.YEAR, expected.getLong(ChronoField.YEAR));
+                long dayOfYear = expected.toEpochDay()
+                        - CHRONOLOGY.date((int) expected.getLong(ChronoField.YEAR), 1, 1).toEpochDay() + 1;
+                fields.put(ChronoField.DAY_OF_YEAR, dayOfYear);
+                assertThat(CHRONOLOGY.resolveDate(fields, style)).isEqualTo(expected);
+                assertThat(fields).isEmpty();
+            }
+        }
+    }
+
+    @Test
+    void distinguishesStrictSmartAndLenientMonthEndResolution() {
+        Map<TemporalField, Long> fields = new HashMap<>();
+        fields.put(ChronoField.YEAR, 2023L);
+        fields.put(ChronoField.MONTH_OF_YEAR, 3L);
+        fields.put(ChronoField.DAY_OF_MONTH, 30L);
+
+        assertThat(CHRONOLOGY.date(2023, 3, 1).lengthOfMonth()).isEqualTo(29);
+        assertThatThrownBy(() -> CHRONOLOGY.resolveDate(new HashMap<>(fields), ResolverStyle.STRICT))
+                .isInstanceOf(DateTimeException.class);
+        assertThat(CHRONOLOGY.resolveDate(new HashMap<>(fields), ResolverStyle.SMART))
+                .isEqualTo(CHRONOLOGY.date(2023, 3, 29));
+        assertThat(CHRONOLOGY.resolveDate(new HashMap<>(fields), ResolverStyle.LENIENT))
+                .isEqualTo(CHRONOLOGY.date(2023, 4, 1));
+    }
+
+    @Test
+    void rejectsConflictingYearAndEraFields() {
+        for (ResolverStyle style : ResolverStyle.values()) {
+            Map<TemporalField, Long> fields = new HashMap<>();
+            fields.put(ChronoField.YEAR, 2023L);
+            fields.put(ChronoField.YEAR_OF_ERA, 2024L);
+            fields.put(ChronoField.ERA, 1L);
+            fields.put(ChronoField.MONTH_OF_YEAR, 1L);
+            fields.put(ChronoField.DAY_OF_MONTH, 1L);
+            assertThatThrownBy(() -> CHRONOLOGY.resolveDate(fields, style))
+                    .isInstanceOf(DateTimeException.class);
+        }
+    }
+
+    @Test
+    void resolvesExplicitLeapMonthInEveryResolverStyle() {
+        for (ResolverStyle style : ResolverStyle.values()) {
+            Map<TemporalField, Long> fields = new HashMap<>();
+            fields.put(ChronoField.YEAR, 2023L);
+            fields.put(ChronoField.MONTH_OF_YEAR, 2L);
+            fields.put(ChronoField.DAY_OF_MONTH, 1L);
+            fields.put(ChineseTemporalField.IS_LEAP_MONTH, 1L);
+            assertThat(CHRONOLOGY.resolveDate(fields, style))
+                    .isEqualTo(CHRONOLOGY.date(2023, 2, true, 1));
+            assertThat(fields).isEmpty();
+
+            fields.put(ChronoField.YEAR, 2024L);
+            fields.put(ChronoField.MONTH_OF_YEAR, 2L);
+            fields.put(ChronoField.DAY_OF_MONTH, 1L);
+            fields.put(ChineseTemporalField.IS_LEAP_MONTH, 1L);
+            assertThatThrownBy(() -> CHRONOLOGY.resolveDate(fields, style))
+                    .isInstanceOf(DateTimeException.class);
+        }
+    }
+
+    @Test
+    void parsesLeapMonthAndRejectsConflictingDayOfYear() {
+        var formatter = new java.time.format.DateTimeFormatterBuilder()
+                .appendPattern("uuuu-MM-dd/")
+                .appendValue(ChineseTemporalField.IS_LEAP_MONTH)
+                .appendLiteral('/')
+                .appendValue(ChronoField.DAY_OF_YEAR)
+                .toFormatter(java.util.Locale.ROOT)
+                .withChronology(CHRONOLOGY);
+        for (ResolverStyle style : ResolverStyle.values()) {
+            var resolver = formatter.withResolverStyle(style);
+            ChineseDate parsed = resolver.parse("2023-02-01/1/60", CHRONOLOGY::date);
+            assertThat(parsed).isEqualTo(CHRONOLOGY.date(2023, 2, true, 1));
+            assertThatThrownBy(() -> resolver.parse("2023-02-01/1/1", CHRONOLOGY::date))
+                    .isInstanceOf(DateTimeException.class);
+        }
+    }
+
+    @Test
+    void resolvesLenientMonthOverflowWithoutCountingLeapMonthsAsMonthNumbers() {
+        for (long month : new long[]{0, 3, 13}) {
+            Map<TemporalField, Long> fields = new HashMap<>();
+            fields.put(ChronoField.YEAR, 2023L);
+            fields.put(ChronoField.MONTH_OF_YEAR, month);
+            fields.put(ChronoField.DAY_OF_MONTH, 1L);
+            ChineseDate expected = month == 0 ? CHRONOLOGY.date(2022, 12, 1)
+                    : month == 13 ? CHRONOLOGY.date(2024, 1, 1)
+                    : CHRONOLOGY.date(2023, 3, 1);
+            assertThat(CHRONOLOGY.resolveDate(fields, ResolverStyle.LENIENT)).isEqualTo(expected);
+        }
     }
 
     @Test
