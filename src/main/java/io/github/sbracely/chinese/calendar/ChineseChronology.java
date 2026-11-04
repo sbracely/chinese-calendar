@@ -24,6 +24,87 @@ import static io.github.sbracely.chinese.calendar.ChineseEra.CHINESE_ERA;
  */
 public final class ChineseChronology extends AbstractChronology implements Serializable {
 
+    //-----------------------------------------------------------------------
+    // Constants
+    // 常量
+    //-----------------------------------------------------------------------
+
+    /**
+     * The base name of the resource bundle containing localized calendar names.
+     * 包含本地化历法名称的资源包基础名称。
+     */
+    private static final String RESOURCE_BUNDLE_BASE_NAME = "cldr.chinese-calendar";
+
+    /**
+     * The key for the localized Chinese calendar name in the resource bundle.
+     * 资源包中农历本地化名称对应的键。
+     */
+    private static final String RESOURCE_BUNDLE_CALENDAR_NAME = "name";
+
+    /**
+     * The keys used in the configuration file for the Chinese calendar.
+     * 配置文件中用于农历历法的键
+     */
+    private static final String KEY_ID = "id";
+
+    /**
+     * The key used in the configuration file for the type of the Chinese calendar.
+     * 配置文件中用于农历历法类型的键
+     */
+    private static final String KEY_TYPE = "type";
+
+    /**
+     * The key used in the configuration file for the version of the Chinese calendar.
+     * 配置文件中用于农历历法版本的键
+     */
+    private static final String KEY_VERSION = "version";
+
+    /**
+     * The key used in the configuration file for the ISO start date of the Chinese calendar.
+     * 配置文件中用于农历历法 ISO 起始日期的键
+     */
+    private static final String KEY_ISO_START = "iso-start";
+
+    /**
+     * The prefix used in the configuration file for the month lengths of the Chinese calendar.
+     * 配置文件中用于农历历法月份长度的前缀
+     */
+    private static final String KEY_MONTH_LENGTH_PREFIX = "month-length.";
+
+    /**
+     * The prefix for the resource file name containing the Chinese calendar configuration.
+     * 包含农历历法配置的资源文件名的前缀
+     */
+    private static final String RESOURCE_PREFIX = "chinese-calendar-config-";
+
+    /**
+     * The suffix for the resource file name containing the Chinese calendar configuration.
+     * 包含农历历法配置的资源文件名的后缀
+     */
+    private static final String RESOURCE_SUFFIX = ".properties";
+
+    /**
+     * The prefix used in the configuration file for leap months.
+     * 配置文件中用于闰月的前缀
+     */
+    private static final String LEAP_PREFIX = "leap";
+
+    //-----------------------------------------------------------------------
+    // Singleton instance
+    // 单例实例
+    //-----------------------------------------------------------------------
+
+    /**
+     * The singleton instance of the ChineseChronology.
+     * 单例实例
+     */
+    public static final ChineseChronology INSTANCE;
+
+    //-----------------------------------------------------------------------
+    // Instance fields
+    // 实例字段
+    //-----------------------------------------------------------------------
+
     /**
      * The Chinese calendar id.
      * 农历历法 id
@@ -42,66 +123,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     private transient volatile CalendarData calendarData;
 
-    /**
-     * The base name of the resource bundle containing localized calendar names.
-     * 包含本地化历法名称的资源包基础名称。
-     */
-    private static final String RESOURCE_BUNDLE_BASE_NAME = "cldr.chinese-calendar";
-
-    /**
-     * The key for the localized Chinese calendar name in the resource bundle.
-     * 资源包中农历本地化名称对应的键。
-     */
-    private static final String RESOURCE_BUNDLE_CALENDAR_NAME = "name";
-
-    /**
-     * The calendar data for the ChineseChronology.
-     * 农历历法的日历数据
-     *
-     * @param monthStartEpochDays the epoch day of the first day of each month
-     *                            每个月初一对应的 epoch day
-     * @param minimumEpochDay     the earliest supported epoch day
-     *                            支持的最早 epoch day
-     * @param maximumEpochDay     the latest supported epoch day
-     *                            支持的最晚 epoch day
-     * @param epochMonthOffset    the offset used to map epoch months to array indices
-     *                            将 epoch 月份映射到数组索引时使用的偏移量
-     * @param minimumDaysInMonth  the minimum number of days in a month
-     *                            月份的最少天数
-     * @param maximumDaysInMonth  the maximum number of days in a month
-     *                            月份的最多天数
-     * @param maximumMonthsInYear the maximum number of months in a year
-     *                            一年的最多月份数
-     * @param minimumDaysInYear   the minimum number of days in a year
-     *                            年份的最少天数
-     * @param maximumDaysInYear   the maximum number of days in a year
-     *                            年份的最多天数
-     * @param leapMonthByYear     the leap month number for each leap year
-     *                            每个闰年的闰月月份
-     * @param minimumYear         the earliest supported proleptic year
-     *                            支持的最早历法年份
-     * @param maximumYear         the latest supported proleptic year
-     *                            支持的最晚历法年份
-     */
-    private record CalendarData(int[] monthStartEpochDays, int minimumEpochDay, int maximumEpochDay,
-                                int epochMonthOffset, int minimumDaysInMonth, int maximumDaysInMonth,
-                                int maximumMonthsInYear, int minimumDaysInYear, int maximumDaysInYear,
-                                Map<Integer, Integer> leapMonthByYear, int minimumYear, int maximumYear) {
-        /**
-         * Creates immutable calendar data by copying mutable input values.
-         * 通过复制可变输入值创建不可变的历法数据。
-         */
-        private CalendarData {
-            monthStartEpochDays = monthStartEpochDays.clone();
-            leapMonthByYear = Map.copyOf(leapMonthByYear);
-        }
-    }
-
-    /**
-     * The singleton instance of the ChineseChronology.
-     * 单例实例
-     */
-    public static final ChineseChronology INSTANCE;
+    //-----------------------------------------------------------------------
+    // Initialization and construction
+    // 初始化与构造
+    //-----------------------------------------------------------------------
 
     static {
         INSTANCE = new ChineseChronology("Chinese", "chinese");
@@ -129,9 +154,18 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         this.calendarType = calendarType;
     }
 
+    /**
+     * Placeholder for registering this chronology with the JDK chronology provider.
+     * 预留用于将此历法注册到 JDK 历法提供程序的位置。
+     */
+    private static void registerCustomChrono() {
+
+        //TODO
+    }
+
     //-----------------------------------------------------------------------
-    // Public methods
-    // 公开方法
+    // Chinese-calendar-specific public methods
+    // 农历专有公开方法
     //-----------------------------------------------------------------------
 
     /**
@@ -150,6 +184,11 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                   日
      * @return the ChineseDate
      * 农历对象
+     * @throws ClassCastException if the era is not the Chinese era, including {@code null}
+     *                            如果纪元不是农历纪元（包括 {@code null}）
+     * @throws DateTimeException if the date is invalid, the leap month does not exist,
+     *                           or the year is outside the supported range
+     *                           如果日期无效、闰月不存在或年份超出支持范围
      */
     public ChineseDate date(Era era, int yearOfEra, int month, boolean leapMonth, int dayOfMonth) {
         return date(prolepticYear(era, yearOfEra), month, leapMonth, dayOfMonth);
@@ -169,6 +208,9 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      日
      * @return the ChineseDate
      * 农历对象
+     * @throws DateTimeException if the date is invalid, the leap month does not exist,
+     *                           or the year is outside the supported range
+     *                           如果日期无效、闰月不存在或年份超出支持范围
      */
     public ChineseDate date(int prolepticYear, int month, boolean leapMonth, int dayOfMonth) {
         return ChineseDate.of(this, prolepticYear, month, leapMonth, dayOfMonth);
@@ -198,6 +240,13 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      时区偏移量
      * @return the epoch-second
      *         epoch 秒
+     * @throws NullPointerException if the era or zone offset is {@code null}
+     *                              如果纪元或时区偏移量为 {@code null}
+     * @throws ClassCastException if the era is not the Chinese era
+     *                            如果纪元不是农历纪元
+     * @throws DateTimeException if the date, leap-month flag, or time is invalid,
+     *                           or the year is outside the supported range
+     *                           如果日期、闰月标志或时间无效，或年份超出支持范围
      */
     public long epochSecond(Era era, int yearOfEra, int month, boolean leapMonth, int dayOfMonth,
                             int hour, int minute, int second, ZoneOffset zoneOffset) {
@@ -228,6 +277,11 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      时区偏移量
      * @return the epoch-second
      *         epoch 秒
+     * @throws NullPointerException if the zone offset is {@code null}
+     *                              如果时区偏移量为 {@code null}
+     * @throws DateTimeException if the date, leap-month flag, or time is invalid,
+     *                           or the year is outside the supported range
+     *                           如果日期、闰月标志或时间无效，或年份超出支持范围
      */
     public long epochSecond(int prolepticYear, int month, boolean leapMonth, int dayOfMonth,
                             int hour, int minute, int second, ZoneOffset zoneOffset) {
@@ -251,6 +305,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                   时区偏移
      * @return the epoch-second
      *         epoch 秒
+     * @throws NullPointerException if the date or zone offset is {@code null}
+     *                              如果日期或时区偏移量为 {@code null}
+     * @throws DateTimeException if the hour, minute, or second is invalid
+     *                           如果小时、分钟或秒无效
      */
     public long epochSecond(ChineseDate date, int hour, int minute, int second, ZoneOffset zoneOffset) {
         Objects.requireNonNull(zoneOffset, "zoneOffset");
@@ -284,6 +342,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *              要获取范围的字段
      * @return the range of the field
      * 字段的范围
+     * @throws NullPointerException if the field is {@code null}
+     *                              如果字段为 {@code null}
      */
     public ValueRange range(ChineseTemporalField field) {
         CalendarData data = calendarData();
@@ -337,6 +397,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                   月中的日期
      * @return the created Chinese date
      *         创建的农历日期
+     * @throws ClassCastException if the era is not the Chinese era, including {@code null}
+     *                            如果纪元不是农历纪元（包括 {@code null}）
+     * @throws DateTimeException if the date is invalid or outside the supported range
+     *                           如果日期无效或超出支持范围
      */
     @Override
     public ChineseDate date(Era era, int yearOfEra, int month, int dayOfMonth) {
@@ -355,6 +419,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      月中的日期
      * @return the created Chinese date
      *         创建的农历日期
+     * @throws DateTimeException if the date is invalid or outside the supported range
+     *                           如果日期无效或超出支持范围
      */
     @Override
     public ChineseDate date(int prolepticYear, int month, int dayOfMonth) {
@@ -373,6 +439,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                  年内日期
      * @return the created Chinese date
      *         创建的农历日期
+     * @throws ClassCastException if the era is not the Chinese era, including {@code null}
+     *                            如果纪元不是农历纪元（包括 {@code null}）
+     * @throws DateTimeException if the year or day-of-year is outside its supported range
+     *                           如果年份或年内日序超出其支持范围
      */
     @Override
     public ChineseDate dateYearDay(Era era, int yearOfEra, int dayOfYear) {
@@ -389,8 +459,9 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      年内日期
      * @return the created Chinese date
      *         创建的农历日期
-     * @throws DateTimeException if the day-of-year is invalid for the year
-     *                           如果年内日期超出该年份的有效范围，则抛出此异常
+     * @throws DateTimeException if the year is outside the supported range
+     *                           or the day-of-year is invalid for that year
+     *                           如果年份超出支持范围，或年内日期超出该年份的有效范围
      */
     @Override
     public ChineseDate dateYearDay(int prolepticYear, int dayOfYear) {
@@ -409,6 +480,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                 自历元以来的天数
      * @return the created Chinese date
      *         创建的农历日期
+     * @throws DateTimeException if the epoch day is outside the supported range
+     *                           如果纪元天数超出支持范围
      */
     @Override
     public ChineseDate dateEpochDay(long epochDay) {
@@ -421,6 +494,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *
      * @return the current Chinese date
      *         当前农历日期
+     * @throws DateTimeException if the current date is outside the supported range
+     *                           如果当前日期超出支持范围
      */
     @Override
     public ChineseDate dateNow() {
@@ -435,6 +510,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *             要使用的时区
      * @return the current Chinese date
      *         当前农历日期
+     * @throws NullPointerException if the zone is {@code null}
+     *                              如果时区为 {@code null}
+     * @throws DateTimeException if the current date is outside the supported range
+     *                           如果当前日期超出支持范围
      */
     @Override
     public ChineseDate dateNow(ZoneId zone) {
@@ -449,6 +528,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *              要使用的时钟
      * @return the current Chinese date
      *         当前农历日期
+     * @throws NullPointerException if the clock is {@code null}
+     *                              如果时钟为 {@code null}
+     * @throws DateTimeException if the current date is outside the supported range
+     *                           如果当前日期超出支持范围
      */
     @Override
     public ChineseDate dateNow(Clock clock) {
@@ -463,6 +546,11 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                 要转换的时态对象
      * @return the converted Chinese date
      *         转换后的农历日期
+     * @throws NullPointerException if the temporal object is {@code null}
+     *                              如果时态对象为 {@code null}
+     * @throws DateTimeException if an epoch day cannot be obtained
+     *                           or the date is outside the supported range
+     *                           如果无法获取纪元天数或日期超出支持范围
      */
     @Override
     public ChineseDate date(TemporalAccessor temporal) {
@@ -480,6 +568,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                 要转换的时态对象
      * @return the converted local date-time
      *         转换后的本地日期时间
+     * @throws NullPointerException if the temporal object is {@code null}
+     *                              如果时态对象为 {@code null}
+     * @throws DateTimeException if the date-time cannot be obtained
+     *                           如果无法获取日期时间
      */
     @Override
     @SuppressWarnings("unchecked")
@@ -495,6 +587,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                 要转换的时态对象
      * @return the converted zoned date-time
      *         转换后的带时区日期时间
+     * @throws NullPointerException if the temporal object is {@code null}
+     *                              如果时态对象为 {@code null}
+     * @throws DateTimeException if the zoned date-time cannot be obtained
+     *                           如果无法获取带时区日期时间
      */
     @Override
     @SuppressWarnings("unchecked")
@@ -512,6 +608,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                要使用的时区
      * @return the converted zoned date-time
      *         转换后的带时区日期时间
+     * @throws NullPointerException if the instant or zone is {@code null}
+     *                              如果瞬时点或时区为 {@code null}
+     * @throws DateTimeException if the zoned date-time cannot be obtained
+     *                           如果无法获取带时区日期时间
      */
     @Override
     @SuppressWarnings("unchecked")
@@ -543,8 +643,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                  纪元中的年份
      * @return the proleptic year
      *         历法年份
-     * @throws ClassCastException if the era is not {@link ChineseEra}
-     *                             如果纪元不是 {@link ChineseEra}，则抛出此异常
+     * @throws ClassCastException if the era is not the Chinese era, including {@code null}
+     *                            如果纪元不是农历纪元（包括 {@code null}）
      */
     @Override
     public int prolepticYear(Era era, int yearOfEra) {
@@ -562,6 +662,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                 纪元值
      * @return the corresponding Chinese era
      *         对应的农历纪元
+     * @throws DateTimeException if the era value is invalid
+     *                           如果纪元值无效
      */
     @Override
     public Era eraOf(int eraValue) {
@@ -588,6 +690,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *              要查询的字段
      * @return the valid value range
      *         有效值范围
+     * @throws NullPointerException if the field is {@code null}
+     *                              如果字段为 {@code null}
      */
     @Override
     public ValueRange range(ChronoField field) {
@@ -611,6 +715,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *               要使用的区域设置
      * @return the localized display name
      *         本地化显示名称
+     * @throws NullPointerException if the style or locale is {@code null}
+     *                              如果文本样式或区域设置为 {@code null}
      */
     @Override
     public String getDisplayName(TextStyle style, Locale locale) {
@@ -655,6 +761,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      解析样式
      * @return the resolved Chinese date, or {@code null} if unresolved
      *         解析后的农历日期；如果无法解析则返回 {@code null}
+     * @throws DateTimeException if the fields conflict or cannot form a valid supported date
+     *                           如果字段冲突或无法组成有效且受支持的日期
      */
     @Override
     public ChineseDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
@@ -683,36 +791,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * The keys used in the configuration file for the Chinese calendar.
-     * 配置文件中用于农历历法的键
-     */
-    private static final String KEY_ID = "id";
-
-    /**
-     * The key used in the configuration file for the type of the Chinese calendar.
-     * 配置文件中用于农历历法类型的键
-     */
-    private static final String KEY_TYPE = "type";
-
-    /**
-     * The key used in the configuration file for the version of the Chinese calendar.
-     * 配置文件中用于农历历法版本的键
-     */
-    private static final String KEY_VERSION = "version";
-
-    /**
-     * The key used in the configuration file for the ISO start date of the Chinese calendar.
-     * 配置文件中用于农历历法 ISO 起始日期的键
-     */
-    private static final String KEY_ISO_START = "iso-start";
-
-    /**
-     * The prefix used in the configuration file for the month lengths of the Chinese calendar.
-     * 配置文件中用于农历历法月份长度的前缀
-     */
-    private static final String KEY_MONTH_LENGTH_PREFIX = "month-length.";
-
-    /**
      * Load the calendar data from the configuration file.
      * 加载配置文件中的日历数据
      *
@@ -722,6 +800,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                     日历的类型 id
      * @return the loaded CalendarData
      * 加载的 CalendarData
+     * @throws DateTimeException if the configuration cannot be read or its data is invalid
+     *                           如果无法读取配置或配置数据无效
      */
     private static CalendarData loadCalendarData(String typeId, String calendarType) {
         try {
@@ -795,18 +875,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * The prefix for the resource file name containing the Chinese calendar configuration.
-     * 包含农历历法配置的资源文件名的前缀
-     */
-    private static final String RESOURCE_PREFIX = "chinese-calendar-config-";
-
-    /**
-     * The suffix for the resource file name containing the Chinese calendar configuration.
-     * 包含农历历法配置的资源文件名的后缀
-     */
-    private static final String RESOURCE_SUFFIX = ".properties";
-
-    /**
      * Read the configuration properties for the Chinese calendar from the resource file.
      * 从资源文件中读取农历历法的配置属性
      *
@@ -816,6 +884,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                     日历的类型
      * @return the properties loaded from the resource file
      * 从资源文件中加载的属性
+     * @throws DateTimeException if the resource is missing or cannot be read
+     *                           如果资源不存在或无法读取
      */
     private static Properties readConfigProperties(final String chronologyId, final String calendarType) {
         String resourceName = RESOURCE_PREFIX + chronologyId + "-" + calendarType + RESOURCE_SUFFIX;
@@ -832,12 +902,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * The prefix used in the configuration file for leap months.
-     * 配置文件中用于闰月的前缀
-     */
-    private static final String LEAP_PREFIX = "leap";
-
-    /**
      * Parse the month lengths for a given year from the configuration line.
      * 从配置行中解析给定年份的月份长度
      *
@@ -847,6 +911,9 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                              年份对应的月份长度配置行
      * @return a ParsedMonths object containing the month lengths and leap month index
      * 包含月份长度和闰月索引的 ParsedMonths 对象
+     * @throws IllegalArgumentException if the month count, leap-month count,
+     *                                  or numeric month length is invalid
+     *                                  如果月份数量、闰月数量或月份天数的数字格式无效
      */
     private static ParsedMonths parseMonthLengths(int year, String monthLengthConfigLine) {
         String[] monthLengthStringArray = createMonthLengthStringArray(year, monthLengthConfigLine);
@@ -870,37 +937,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * The parsed month lengths and leap-month number for one year.
-     * 某一年的月份天数和闰月编号。
-     *
-     * @param monthLengths the month lengths in sequence
-     *                     按顺序排列的月份天数
-     * @param leapMonth    the one-based month number of the leap month, or zero if none
-     *                     闰月对应的月份编号；没有闰月时为零
-     */
-    private record ParsedMonths(int[] monthLengths, int leapMonth) {
-    }
-
-    /**
-     * A record to hold the month start epoch days and related data.
-     * 用于保存月份开始的纪元天数和相关数据
-     *
-     * @param monthStartEpochDays the epoch day at the start of each month
-     *                            每个月开始时对应的纪元天数
-     * @param minimumDaysInMonth  the minimum number of days in a month
-     *                            月份的最少天数
-     * @param maximumDaysInMonth  the maximum number of days in a month
-     *                            月份的最多天数
-     * @param minimumDaysInYear   the minimum number of days in a year
-     *                            年份的最少天数
-     * @param maximumDaysInYear   the maximum number of days in a year
-     *                            年份的最多天数
-     */
-    private record MonthStartData(int[] monthStartEpochDays, int minimumDaysInMonth, int maximumDaysInMonth,
-                                  int minimumDaysInYear, int maximumDaysInYear) {
-    }
-
-    /**
      * Create an array of month length strings for a given year from the configuration line.
      * 从配置行中为给定年份创建月份长度字符串数组
      *
@@ -910,6 +946,9 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                              年份对应的月份长度配置行
      * @return month length string array
      * 月份长度字符串数组
+     * @throws IllegalArgumentException if the month count and leap-month count
+     *                                  do not describe a common or leap year
+     *                                  如果月份数量与闰月数量不符合平年或闰年规则
      */
     private static String[] createMonthLengthStringArray(int year, String monthLengthConfigLine) {
         String[] monthLengthStringArray = monthLengthConfigLine.strip().split("\\s+");
@@ -949,6 +988,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                               每年的最大月份数
      * @return MonthStartData containing the month start epoch days
      * 包含月份开始的纪元天数的数据
+     * @throws IllegalArgumentException if a month length is negative
+     *                                  如果月份天数为负数
+     * @throws IllegalStateException if the month-start table is not filled exactly
+     *                               如果月初纪元天数表未被恰好填满
      */
     private static MonthStartData createMonthStartEpochDays(Collection<int[]> daysOfMonthsCollection,
                                                             int minimumEpochDay, int maximumMonthsInYear) {
@@ -1079,6 +1122,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      月中的日期
      * @return the corresponding epoch day
      *         对应的纪元天数
+     * @throws DateTimeException if the date is invalid or outside the supported range
+     *                           如果日期无效或超出支持范围
      */
     long getEpochDay(int prolepticYear, int monthOfYear, int dayOfMonth) {
         return getEpochDay(prolepticYear, monthOfYear, false, dayOfMonth);
@@ -1098,6 +1143,9 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      月中的日期
      * @return the corresponding epoch day
      *         对应的纪元天数
+     * @throws DateTimeException if the date is invalid, the leap month does not exist,
+     *                           or the year is outside the supported range
+     *                           如果日期无效、闰月不存在或年份超出支持范围
      */
     long getEpochDay(int prolepticYear, int monthOfYear, boolean leapMonth, int dayOfMonth) {
         CalendarData data = calendarData();
@@ -1125,6 +1173,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      年中的月份
      * @return the number of days in the month
      *         月份天数
+     * @throws DateTimeException if the computed month index is outside the calendar data
+     *                           如果计算出的月份索引超出历法数据范围
      */
     int getMonthLength(int prolepticYear, int monthOfYear) {
         return getMonthLength(prolepticYear, monthOfYear, false);
@@ -1142,6 +1192,9 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                      指定月份是否为闰月
      * @return the number of days in the month
      *         月份天数
+     * @throws DateTimeException if the leap month does not exist
+     *                           or the computed month index is outside the calendar data
+     *                           如果闰月不存在或计算出的月份索引超出历法数据范围
      */
     int getMonthLength(int prolepticYear, int monthOfYear, boolean leapMonth) {
         CalendarData data = calendarData();
@@ -1205,6 +1258,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *         结果对应的纪元天数
      * @throws DateTimeException if the resulting date is outside the supported range
      *                           如果结果日期超出支持范围，则抛出此异常
+     * @throws ArithmeticException if adding the month count overflows
+     *                             如果月份数量相加时溢出
      */
     long epochDayAfterMonths(ChineseDate start, long months) {
         CalendarData data = calendarData();
@@ -1359,15 +1414,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * Placeholder for registering this chronology with the JDK chronology provider.
-     * 预留用于将此历法注册到 JDK 历法提供程序的位置。
-     */
-    private static void registerCustomChrono() {
-
-        //TODO
-    }
-
-    /**
      * Checks whether an epoch-month index represents the leap month of a year.
      * 检查纪元月份索引是否对应某年的闰月。
      *
@@ -1435,6 +1481,85 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         }
         return months + chineseYearMonthToEpochMonth(
                 data, date.prolepticYear(), date.monthOfYear(), date.isLeapMonth());
+    }
+
+    //-----------------------------------------------------------------------
+    // Internal calendar data types
+    // 内部历法数据类型
+    //-----------------------------------------------------------------------
+
+    /**
+     * The calendar data for the ChineseChronology.
+     * 农历历法的日历数据
+     *
+     * @param monthStartEpochDays the epoch day of the first day of each month
+     *                            每个月初一对应的 epoch day
+     * @param minimumEpochDay     the earliest supported epoch day
+     *                            支持的最早 epoch day
+     * @param maximumEpochDay     the latest supported epoch day
+     *                            支持的最晚 epoch day
+     * @param epochMonthOffset    the offset used to map epoch months to array indices
+     *                            将 epoch 月份映射到数组索引时使用的偏移量
+     * @param minimumDaysInMonth  the minimum number of days in a month
+     *                            月份的最少天数
+     * @param maximumDaysInMonth  the maximum number of days in a month
+     *                            月份的最多天数
+     * @param maximumMonthsInYear the maximum number of months in a year
+     *                            一年的最多月份数
+     * @param minimumDaysInYear   the minimum number of days in a year
+     *                            年份的最少天数
+     * @param maximumDaysInYear   the maximum number of days in a year
+     *                            年份的最多天数
+     * @param leapMonthByYear     the leap month number for each leap year
+     *                            每个闰年的闰月月份
+     * @param minimumYear         the earliest supported proleptic year
+     *                            支持的最早历法年份
+     * @param maximumYear         the latest supported proleptic year
+     *                            支持的最晚历法年份
+     */
+    private record CalendarData(int[] monthStartEpochDays, int minimumEpochDay, int maximumEpochDay,
+                                int epochMonthOffset, int minimumDaysInMonth, int maximumDaysInMonth,
+                                int maximumMonthsInYear, int minimumDaysInYear, int maximumDaysInYear,
+                                Map<Integer, Integer> leapMonthByYear, int minimumYear, int maximumYear) {
+        /**
+         * Creates immutable calendar data by copying mutable input values.
+         * 通过复制可变输入值创建不可变的历法数据。
+         */
+        private CalendarData {
+            monthStartEpochDays = monthStartEpochDays.clone();
+            leapMonthByYear = Map.copyOf(leapMonthByYear);
+        }
+    }
+
+    /**
+     * The parsed month lengths and leap-month number for one year.
+     * 某一年的月份天数和闰月编号。
+     *
+     * @param monthLengths the month lengths in sequence
+     *                     按顺序排列的月份天数
+     * @param leapMonth    the one-based month number of the leap month, or zero if none
+     *                     闰月对应的月份编号；没有闰月时为零
+     */
+    private record ParsedMonths(int[] monthLengths, int leapMonth) {
+    }
+
+    /**
+     * A record to hold the month start epoch days and related data.
+     * 用于保存月份开始的纪元天数和相关数据
+     *
+     * @param monthStartEpochDays the epoch day at the start of each month
+     *                            每个月开始时对应的纪元天数
+     * @param minimumDaysInMonth  the minimum number of days in a month
+     *                            月份的最少天数
+     * @param maximumDaysInMonth  the maximum number of days in a month
+     *                            月份的最多天数
+     * @param minimumDaysInYear   the minimum number of days in a year
+     *                            年份的最少天数
+     * @param maximumDaysInYear   the maximum number of days in a year
+     *                            年份的最多天数
+     */
+    private record MonthStartData(int[] monthStartEpochDays, int minimumDaysInMonth, int maximumDaysInMonth,
+                                  int minimumDaysInYear, int maximumDaysInYear) {
     }
 
     //-----------------------------------------------------------------------

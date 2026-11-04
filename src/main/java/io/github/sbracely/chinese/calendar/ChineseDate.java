@@ -2,8 +2,8 @@ package io.github.sbracely.chinese.calendar;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.DateTimeException;
 import java.time.Clock;
+import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.chrono.ChronoLocalDate;
@@ -312,7 +312,10 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                      CLOCK_HOUR_OF_AMPM,
                      HOUR_OF_DAY,
                      CLOCK_HOUR_OF_DAY,
-                     AMPM_OF_DAY -> false;
+                     AMPM_OF_DAY,
+                     PROLEPTIC_MONTH,
+                     INSTANT_SECONDS,
+                     OFFSET_SECONDS -> false;
                 case DAY_OF_WEEK,
                      ALIGNED_DAY_OF_WEEK_IN_MONTH,
                      ALIGNED_DAY_OF_WEEK_IN_YEAR,
@@ -321,13 +324,10 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                      EPOCH_DAY,
                      ALIGNED_WEEK_OF_MONTH,
                      ALIGNED_WEEK_OF_YEAR,
-                     MONTH_OF_YEAR -> true;
-                case PROLEPTIC_MONTH -> false;
-                case YEAR_OF_ERA,
+                     MONTH_OF_YEAR,
+                     YEAR_OF_ERA,
                      YEAR,
                      ERA -> true;
-                case INSTANT_SECONDS,
-                     OFFSET_SECONDS -> false;
             };
         } else if (field instanceof ChineseTemporalField) {
             return true;
@@ -348,8 +348,8 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                 case ALIGNED_WEEK_OF_MONTH -> (dayOfMonth - 1) / 7 + 1;
                 case ALIGNED_WEEK_OF_YEAR -> (getDayOfYear() - 1) / 7 + 1;
                 case MONTH_OF_YEAR -> monthOfYear;
-                case YEAR_OF_ERA -> prolepticYear;
-                case YEAR -> prolepticYear;
+                case YEAR_OF_ERA,
+                     YEAR -> prolepticYear;
                 case ERA -> ChineseEra.CHINESE_ERA.getValue();
                 default -> throw new UnsupportedTemporalTypeException("Unsupported field: " + field);
             };
