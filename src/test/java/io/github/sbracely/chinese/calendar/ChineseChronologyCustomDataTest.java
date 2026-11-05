@@ -17,7 +17,6 @@ import java.time.chrono.Chronology;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -56,58 +55,69 @@ class ChineseChronologyCustomDataTest {
     }
 
     @Test
-    void readsRelativePathFromApplicationProperties() throws Exception {
+    void configuresAbsolutePathBeforeLoadingData() throws Exception {
+        run("configure", null, fixture("custom").toString());
+    }
+
+    @Test
+    void configuresRelativePathAgainstJvmWorkingDirectory() throws Exception {
         fixture("custom");
-        application("application-relative");
-        run("application", null);
+        run("configure-relative", null);
     }
 
     @Test
-    void readsAbsolutePathFromApplicationProperties() throws Exception {
-        Path data = fixture("custom");
-        application("application-relative");
-        Properties properties = new Properties();
-        Path application = directory.resolve("application.properties");
-        try (var reader = Files.newBufferedReader(application)) {
-            properties.load(reader);
-        }
-        properties.setProperty("chinese.calendar.config", data.toAbsolutePath().toString());
-        try (var writer = Files.newBufferedWriter(application)) {
-            properties.store(writer, null);
-        }
-        run("application", null);
+    void environmentVariableSelectsDataFile() throws Exception {
+        String path = fixture("custom").toString();
+        runWithEnvironment("shared", null, path, new String[]{path});
     }
 
     @Test
-    void systemPropertyOverridesApplicationProperties() throws Exception {
-        application("application-missing");
-        run("application", fixture("custom").toString());
+    void systemPropertyTakesPrecedenceOverEnvironmentVariable() throws Exception {
+        runWithEnvironment("shared", fixture("custom").toString(), fixture("common-only").toString(),
+                new String[0]);
     }
 
     @Test
-    void acceptsRelativeSystemPropertyPath() throws Exception {
-        fixture("custom");
-        run("application", "custom.properties");
+    void usesWorkingDirectoryConfigurationBeforeBuiltInData() throws Exception {
+        Path localConfig = workingDirectoryConfiguration("custom");
+        run("shared", null, localConfig.toString());
     }
 
     @Test
-    void blankSystemPropertyDoesNotFallBackToApplicationConfiguration() throws Exception {
-        fixture("custom");
-        application("application-relative");
-        run("invalid", "");
+    void systemPropertyTakesPrecedenceOverWorkingDirectoryConfiguration() throws Exception {
+        workingDirectoryConfiguration("custom");
+        run("common", fixture("common-only").toString());
     }
 
     @Test
-    void missingApplicationKeyUsesBuiltInData() throws Exception {
-        application("application-default");
+    void environmentVariableTakesPrecedenceOverWorkingDirectoryConfiguration() throws Exception {
+        Path localConfig = workingDirectoryConfiguration("common-only");
+        String externalConfig = fixture("custom").toString();
+        runWithEnvironment("shared", null, externalConfig, new String[]{localConfig.toString()});
+    }
+
+    @Test
+    void invalidWorkingDirectoryConfigurationDoesNotFallBackToBuiltInData() throws Exception {
+        Path localConfig = workingDirectoryConfiguration("invalid-month");
+        run("invalid", null, localConfig.toString());
+    }
+
+    @Test
+    void explicitConfigurationTakesPrecedenceOverSystemPropertyAndEnvironment() throws Exception {
+        String custom = fixture("custom").toString();
+        String common = fixture("common-only").toString();
+        runWithEnvironment("configure-common", custom, custom, new String[]{common});
+    }
+
+    @Test
+    void missingConfigurationSourcesUseBuiltInData() throws Exception {
         run("default", null);
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"application-missing", "application-blank"})
-    void invalidApplicationPathDoesNotFallBack(String name) throws Exception {
-        application(name);
-        run("application-invalid", null);
+    @ValueSource(strings = {"", "   "})
+    void blankSystemPropertyDoesNotFallBackToEnvironment(String path) throws Exception {
+        runWithEnvironment("invalid", path, fixture("custom").toString(), new String[0]);
     }
 
     @Test
@@ -130,12 +140,26 @@ class ChineseChronologyCustomDataTest {
         return destination;
     }
 
-    private void application(String name) throws Exception {
-        Files.copy(fixture(name), directory.resolve("application.properties"),
-                StandardCopyOption.REPLACE_EXISTING);
+    private Path workingDirectoryConfiguration(String name) throws Exception {
+        Path destination = directory.resolve("chinese-calendar-config.properties");
+        try (var input = getClass().getResourceAsStream("/calendar-config/" + name + ".properties")) {
+            assertThat(input).isNotNull();
+            Files.copy(input, destination, StandardCopyOption.REPLACE_EXISTING);
+        }
+        return destination;
     }
 
     private void run(String action, String config, String... arguments) throws Exception {
+        runInChild(action, config, null, arguments);
+    }
+
+    private void runWithEnvironment(String action, String config, String environmentPath, String[] arguments)
+            throws Exception {
+        runInChild(action, config, environmentPath, arguments);
+    }
+
+    private void runInChild(String action, String config, String environmentPath, String... arguments)
+            throws Exception {
         var command = new ArrayList<String>();
         String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
         command.add(Path.of(System.getProperty("java.home"), "bin", executable).toString());
@@ -152,7 +176,12 @@ class ChineseChronologyCustomDataTest {
         command.add(action);
         command.addAll(List.of(arguments));
         Path log = directory.resolve("child-jvm.log");
-        Process process = new ProcessBuilder(command).directory(directory.toFile())
+        ProcessBuilder builder = new ProcessBuilder(command).directory(directory.toFile());
+        builder.environment().remove("CHINESE_CALENDAR_CONFIG");
+        if (environmentPath != null) {
+            builder.environment().put("CHINESE_CALENDAR_CONFIG", environmentPath);
+        }
+        Process process = builder
                 .redirectErrorStream(true).redirectOutput(log.toFile()).start();
         try {
             assertThat(process.waitFor(30, TimeUnit.SECONDS)).as("child JVM completed").isTrue();
@@ -166,10 +195,34 @@ class ChineseChronologyCustomDataTest {
 
     public static void main(String[] args) throws Exception {
         String config = System.getProperty("chinese.calendar.config");
-        ChineseChronology chronology = (ChineseChronology) Chronology.of("Chinese");
-        System.clearProperty("chinese.calendar.config");
+        ChineseChronology chronology;
         switch (args[0]) {
+            case "configure" -> {
+                ChineseChronology.configure(Path.of(args[1]));
+                System.clearProperty("chinese.calendar.config");
+                chronology = (ChineseChronology) Chronology.of("Chinese");
+                assertThat(chronology.date(2023, 1, 1).toEpochDay())
+                        .isEqualTo(LocalDate.of(2023, 1, 23).toEpochDay());
+                assertThatThrownBy(() -> ChineseChronology.configure(Path.of(args[1])))
+                        .isInstanceOf(IllegalStateException.class);
+            }
+            case "configure-relative" -> {
+                ChineseChronology.configure(Path.of("custom.properties"));
+                chronology = ChineseChronology.INSTANCE;
+                assertThat(chronology.date(2023, 1, 1).toEpochDay())
+                        .isEqualTo(LocalDate.of(2023, 1, 23).toEpochDay());
+            }
+            case "configure-common" -> {
+                ChineseChronology.configure(Path.of(args[1]));
+                chronology = (ChineseChronology) Chronology.of("Chinese");
+                assertThat(chronology.range(ChronoField.YEAR).getMinimum()).isEqualTo(2024);
+                assertThat(chronology.date(2024, 1, 1).toEpochDay())
+                        .isEqualTo(LocalDate.of(2024, 2, 10).toEpochDay());
+                assertThatThrownBy(() -> ChineseChronology.configure(Path.of(args[1])))
+                        .isInstanceOf(IllegalStateException.class);
+            }
             case "shared" -> {
+                chronology = (ChineseChronology) Chronology.of("Chinese");
                 long first = LocalDate.of(2023, 1, 23).toEpochDay();
                 IntStream.range(0, 32).parallel().forEach(i ->
                         assertThat(new ChineseChronology().date(2023, 1, 1).toEpochDay()).isEqualTo(first));
@@ -184,7 +237,10 @@ class ChineseChronologyCustomDataTest {
                 assertThat(chronology.date(2023, 2, 1).plusMonths(1))
                         .isEqualTo(chronology.date(2023, 2, true, 1));
                 assertThat(chronology.date(2023, 12, 30).plusDays(1)).isEqualTo(chronology.date(2024, 1, 1));
-                Files.delete(Path.of(config));
+                Path selectedConfig = Path.of(args.length > 1 ? args[1] : config);
+                Files.delete(selectedConfig);
+                assertThatThrownBy(() -> ChineseChronology.configure(selectedConfig))
+                        .isInstanceOf(IllegalStateException.class);
                 assertThat(ChineseChronology.INSTANCE.date(2023, 1, 1).toEpochDay()).isEqualTo(first);
                 assertThat(Chronology.of("chinese").date(2023, 1, 1).toEpochDay()).isEqualTo(first);
                 assertThat(new ChineseChronology().date(2023, 1, 1).toEpochDay()).isEqualTo(first);
@@ -192,6 +248,7 @@ class ChineseChronologyCustomDataTest {
                 assertThatThrownBy(() -> chronology.dateEpochDay(last + 1)).isInstanceOf(DateTimeException.class);
             }
             case "common" -> {
+                chronology = (ChineseChronology) Chronology.of("Chinese");
                 ChineseDate first = chronology.date(2024, 1, 1);
                 ChineseDate last = chronology.date(2024, 12, 29);
                 assertThat(first.toEpochDay()).isEqualTo(LocalDate.of(2024, 2, 10).toEpochDay());
@@ -200,28 +257,29 @@ class ChineseChronologyCustomDataTest {
                 assertThat(chronology.dateEpochDay(last.toEpochDay())).isEqualTo(last);
                 assertThatThrownBy(() -> last.plusDays(1)).isInstanceOf(DateTimeException.class);
             }
-            case "application" -> {
-                assertThat(chronology.date(2023, 1, 1).toEpochDay())
-                        .isEqualTo(LocalDate.of(2023, 1, 23).toEpochDay());
-                assertThat(ChineseChronology.INSTANCE.date(2023, 1, 1))
-                        .isEqualTo(chronology.date(2023, 1, 1));
+            case "default" -> {
+                chronology = (ChineseChronology) Chronology.of("Chinese");
+                assertThat(chronology.date(1900, 1, 1).toEpochDay())
+                        .isEqualTo(LocalDate.of(1900, 1, 31).toEpochDay());
             }
-            case "default" -> assertThat(chronology.date(1900, 1, 1).toEpochDay())
-                    .isEqualTo(LocalDate.of(1900, 1, 31).toEpochDay());
-            case "application-invalid" -> assertThatThrownBy(() -> chronology.date(2023, 1, 1))
-                    .isInstanceOf(DateTimeException.class);
             case "invalid" -> {
+                chronology = (ChineseChronology) Chronology.of("Chinese");
                 Throwable failure = catchThrowable(() -> chronology.date(2023, 1, 1));
                 assertThat(failure).isInstanceOf(DateTimeException.class);
-                if (!config.isBlank()) {
-                    try (var input = ChineseChronologyCustomDataTest.class
-                            .getResourceAsStream("/calendar-config/custom.properties")) {
-                        Files.copy(input, Path.of(config), StandardCopyOption.REPLACE_EXISTING);
-                    }
+                if (config != null && !config.isBlank()) {
+                    Files.writeString(Path.of(config), "version=1");
                 }
                 assertThat(catchThrowable(() -> new ChineseChronology().date(2023, 1, 1))).isSameAs(failure);
             }
+            case "mismatch" -> {
+                chronology = (ChineseChronology) Chronology.of("Chinese");
+                try (var input = new ObjectInputStream(Files.newInputStream(Path.of(args[1])))) {
+                    assertThatThrownBy(input::readObject).isInstanceOf(InvalidObjectException.class)
+                            .hasMessageContaining("fingerprint mismatch");
+                }
+            }
             case "write" -> {
+                chronology = (ChineseChronology) Chronology.of("Chinese");
                 try (var output = new ObjectOutputStream(Files.newOutputStream(Path.of(args[1])))) {
                     output.writeObject(chronology.date(2023, 2, true, 29));
                     output.writeObject(chronology);
@@ -229,18 +287,13 @@ class ChineseChronologyCustomDataTest {
                 }
             }
             case "read" -> {
+                chronology = (ChineseChronology) Chronology.of("Chinese");
                 try (var input = new ObjectInputStream(Files.newInputStream(Path.of(args[1])))) {
                     ChineseDate restored = (ChineseDate) input.readObject();
                     assertThat(restored).isEqualTo(chronology.date(2023, 2, true, 29));
                     assertThat(restored.getChronology()).isSameAs(ChineseChronology.INSTANCE);
                     assertThat(input.readObject()).isSameAs(ChineseChronology.INSTANCE);
                     assertThat(input.readObject()).isEqualTo(chronology.period(1, 2, 3));
-                }
-            }
-            case "mismatch" -> {
-                try (var input = new ObjectInputStream(Files.newInputStream(Path.of(args[1])))) {
-                    assertThatThrownBy(input::readObject).isInstanceOf(InvalidObjectException.class)
-                            .hasMessageContaining("fingerprint mismatch");
                 }
             }
             default -> throw new AssertionError("Unknown action: " + args[0]);

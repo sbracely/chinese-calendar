@@ -27,13 +27,17 @@ import static io.github.sbracely.chinese.calendar.ChineseEra.CHINESE_ERA;
  * The Chinese calendar system.
  * 农历历法系统
  * <p>
- * All instances share one data set. Before class initialization, select an external data file
- * using {@code chinese.calendar.config} in system properties or the classpath resource
- * {@code application.properties}. System properties take precedence; relative paths use the
- * JVM working directory. Data is loaded on first use and cannot be reloaded.
- * 所有实例共享一套数据。本类初始化前，可通过系统属性或类路径资源 {@code application.properties}
- * 中的 {@code chinese.calendar.config} 指定外部数据文件。系统属性优先，相对路径基于 JVM 工作目录。
- * 数据在首次使用时加载，之后不可重新加载。
+ * All instances share one data set. An external data file can be selected before the first
+ * calendar-data access using {@link #configure(Path)}, the {@code chinese.calendar.config}
+ * system property, or the {@code CHINESE_CALENDAR_CONFIG} environment variable, in that order
+ * of precedence. If neither is set, {@code chinese-calendar-config.properties} in the JVM
+ * working directory takes precedence over the built-in resource. Relative paths use the JVM
+ * working directory. Data cannot be reloaded.
+ * 所有实例共享一套数据。首次访问历法数据前，可通过 {@link #configure(Path)}、
+ * 系统属性 {@code chinese.calendar.config} 或环境变量 {@code CHINESE_CALENDAR_CONFIG}
+ * 指定外部数据文件，优先级依次降低。若均未指定，则优先读取 JVM 工作目录下的
+ * {@code chinese-calendar-config.properties}，再读取 JAR 内置资源。相对路径基于 JVM 工作目录，
+ * 数据不可重新加载。
  */
 public final class ChineseChronology extends AbstractChronology implements Serializable {
 
@@ -83,13 +87,20 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * The built-in calendar data resource.
      * 内置农历数据资源。
      */
-    private static final String CONFIG_RESOURCE = "chinese-calendar-data-config.properties";
+    private static final String CONFIG_RESOURCE = "chinese-calendar-config.properties";
 
     /**
-     * The optional external data path, selected at class initialization.
-     * 本类初始化时选定的可选外部数据路径。
+     * The optional external data path, selected from the system property or environment.
+     * 从系统属性或环境变量选定的可选外部数据路径。
      */
-    private static final String CONFIG_FILE = configurationPath();
+    private static volatile String configFile = systemConfigurationPath();
+
+    /**
+     * The JVM working directory used to resolve relative configuration paths.
+     * 用于解析相对配置路径的 JVM 工作目录。
+     */
+    private static final Path WORKING_DIRECTORY = Path.of(System.getProperty("user.dir"))
+            .toAbsolutePath().normalize();
 
     /**
      * The prefix used in the configuration file for leap months.
@@ -127,6 +138,12 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     private static DateTimeException initializationFailure;
 
+    /**
+     * Whether an application has already selected a configuration path explicitly.
+     * 应用是否已显式选择过配置路径。
+     */
+    private static boolean applicationConfigurationSet;
+
     //-----------------------------------------------------------------------
     // Initialization and construction
     // 初始化与构造
@@ -141,6 +158,32 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * 创建共享选定数据的历法实例，供服务加载使用。
      */
     public ChineseChronology() {
+    }
+
+    /**
+     * Selects an external data file before the calendar data is first used.
+     * The path may be absolute or relative to the JVM working directory.
+     * This method can be called only once and before any chronology instance loads calendar data.
+     * 在首次使用历法数据前指定外部数据文件。路径可以是绝对路径或相对于 JVM 工作目录的路径。
+     * 此方法只能调用一次，且必须在任何历法实例加载数据之前调用。
+     *
+     * @param path the external calendar data file
+     *             外部历法数据文件
+     * @throws NullPointerException if the path is null
+     *                              如果路径为 null
+     * @throws IllegalStateException if calendar data has been loaded or this method was already called
+     *                               如果历法数据已加载或此方法已调用过
+     */
+    public static synchronized void configure(Path path) {
+        Objects.requireNonNull(path, "path");
+        if (path.toString().isBlank()) {
+            throw new IllegalArgumentException("External configuration path is blank");
+        }
+        if (calendarData != null || initializationFailure != null || applicationConfigurationSet) {
+            throw new IllegalStateException("Chinese calendar data configuration is already fixed");
+        }
+        configFile = resolvePath(path).toString();
+        applicationConfigurationSet = true;
     }
 
     //-----------------------------------------------------------------------
@@ -877,31 +920,13 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     // 初始化日历数据
     //-----------------------------------------------------------------------
 
-    /**
-     * Selects the data path from system properties or the application configuration.
-     * 从系统属性或应用配置中选定数据路径。
-     *
-     * @return the external path, or null to use built-in data
-     *         外部路径，使用内置数据时为 null
-     * @throws DateTimeException if the application configuration cannot be read
-     *                           如果应用配置无法读取
-     */
-    private static String configurationPath() {
+    private static String systemConfigurationPath() {
         String path = System.getProperty("chinese.calendar.config");
-        if (path != null) {
-            return path;
-        }
-        try (InputStream input = ChineseChronology.class.getClassLoader()
-                .getResourceAsStream("application.properties")) {
-            if (input == null) {
-                return null;
-            }
-            Properties properties = new Properties();
-            properties.load(new InputStreamReader(input, StandardCharsets.UTF_8));
-            return properties.getProperty("chinese.calendar.config");
-        } catch (IOException | IllegalArgumentException e) {
-            throw new DateTimeException("Unable to read application.properties", e);
-        }
+        return path != null ? path : System.getenv("CHINESE_CALENDAR_CONFIG");
+    }
+
+    private static Path resolvePath(Path path) {
+        return path.isAbsolute() ? path.normalize() : WORKING_DIRECTORY.resolve(path).normalize();
     }
 
     /**
@@ -1021,13 +1046,27 @@ public final class ChineseChronology extends AbstractChronology implements Seria
                     dataFingerprint(minimumEpochDay, daysOfMonthsByYear, leapMonthByYear));
         } catch (Exception e) {
             throw new DateTimeException("Unable to initialize Chinese calendar from: "
-                    + (CONFIG_FILE == null ? CONFIG_RESOURCE : CONFIG_FILE), e);
+                    + (configFile == null ? CONFIG_RESOURCE : configFile), e);
         }
     }
 
     /**
-     * Reads the external data file or the built-in resource.
-     * 读取外部数据文件或内置资源。
+     * Reads configuration in the following priority order:
+     * <ol>
+     *   <li>{@link #configure(Path)}</li>
+     *   <li>{@code chinese.calendar.config} system property</li>
+     *   <li>{@code CHINESE_CALENDAR_CONFIG} environment variable</li>
+     *   <li>{@code chinese-calendar-config.properties} in the JVM working directory</li>
+     *   <li>The built-in {@code chinese-calendar-config.properties} resource</li>
+     * </ol>
+     * 按以下优先级读取配置：
+     * <ol>
+     *   <li>{@link #configure(Path)}</li>
+     *   <li>{@code chinese.calendar.config} 系统属性</li>
+     *   <li>{@code CHINESE_CALENDAR_CONFIG} 环境变量</li>
+     *   <li>JVM 工作目录下的 {@code chinese-calendar-config.properties}</li>
+     *   <li>JAR 内置的 {@code chinese-calendar-config.properties} 资源</li>
+     * </ol>
      * @return the properties loaded from the resource file
      * 从资源文件中加载的属性
      * @throws IOException if the configuration cannot be read
@@ -1036,15 +1075,28 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                                  如果路径为空白或内置资源不存在
      */
     private static Properties readConfigProperties() throws IOException {
-        if (CONFIG_FILE != null && CONFIG_FILE.isBlank()) {
+        // 1-3: configFile reflects configure(Path) > system property > environment variable.
+        // 1-3：configFile 已按 configure(Path) > 系统属性 > 环境变量的顺序确定。
+        if (configFile != null && configFile.isBlank()) {
             throw new IllegalArgumentException("External configuration path is blank");
         }
-        try (InputStream is = CONFIG_FILE == null
-                ? ChineseChronology.class.getClassLoader().getResourceAsStream(CONFIG_RESOURCE)
-                : Files.newInputStream(Path.of(CONFIG_FILE))) {
-            if (null == is) {
+        // 4-5: if none is set, check the working-directory file, then the built-in resource.
+        // 4-5：若均未指定，则依次检查工作目录文件和 JAR 内置资源。
+        Path externalPath = configFile == null
+                ? WORKING_DIRECTORY.resolve(CONFIG_RESOURCE)
+                : resolvePath(Path.of(configFile));
+        // Fall back only when the working-directory file is confirmed missing, not unreadable.
+        // 仅在确认工作目录文件不存在时回退，文件无法读取时应直接报错。
+        InputStream input;
+        if (configFile == null && Files.notExists(externalPath)) {
+            input = ChineseChronology.class.getClassLoader().getResourceAsStream(CONFIG_RESOURCE);
+            if (input == null) {
                 throw new IllegalArgumentException("Config resource not found: " + CONFIG_RESOURCE);
             }
+        } else {
+            input = Files.newInputStream(externalPath);
+        }
+        try (InputStream is = input) {
             Properties properties = new Properties();
             properties.load(is);
             return properties;

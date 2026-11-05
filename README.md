@@ -34,9 +34,9 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
 
 ## Custom Chinese calendar data extensions 自定义扩展农历数据
 
-The built-in data is stored in `chinese-calendar-data-config.properties`. To replace it,
+The built-in data is stored in `chinese-calendar-config.properties`. To replace it,
 create an external properties file, for example `/etc/chinese-calendar/calendar.properties`:<br>
-内置数据保存在 `chinese-calendar-data-config.properties` 中。如需替换，
+内置数据保存在 `chinese-calendar-config.properties` 中。如需替换，
 请创建外部配置文件，例如 `/etc/chinese-calendar/calendar.properties`：
 
 ```properties
@@ -47,30 +47,37 @@ iso-start=2024-02-10
 month-length.2024=29 30 29 29 30 29 30 30 29 30 30 29
 ```
 
-Select it using a JVM system property:<br>
-通过 JVM 系统属性指定文件：
+Select it programmatically before the first calendar data access:<br>
+在首次访问历法数据前，通过代码指定：
+
+```java
+ChineseChronology.configure(Path.of("/etc/chinese-calendar/calendar.properties"));
+Chronology chronology = Chronology.of("Chinese");
+```
+
+Or use a JVM system property or environment variable:<br>
+也可通过 JVM 系统属性或环境变量指定：
 
 ```bash
 java -Dchinese.calendar.config=/etc/chinese-calendar/calendar.properties -jar app.jar
 ```
 
-Alternatively, set the same key in the UTF-8 `application.properties` resource at the
-classpath root (for example, `src/main/resources/application.properties`):<br>
-也可在类路径根目录的 UTF-8 `application.properties` 资源中指定同名键
-（例如 `src/main/resources/application.properties`）：
-
-```properties
-chinese.calendar.config=data/calendar.properties
+```bash
+CHINESE_CALENDAR_CONFIG=/etc/chinese-calendar/calendar.properties java -jar app.jar
 ```
 
-Both absolute and relative paths are supported. Relative paths use the JVM working directory,
-not the directory containing `application.properties`.
-System properties take precedence. If neither source supplies the key, built-in data is used.
-The library reads the first classpath `application.properties` directly; framework profiles,
-YAML, placeholder substitution, and configuration merging are not supported.<br>
-支持绝对路径和相对路径。相对路径基于 JVM 工作目录，而非 `application.properties` 所在目录。
-系统属性优先；两处均未提供该键时使用内置数据。
-库直接读取类路径中的首个 `application.properties`，不处理框架 profile、YAML、占位符替换或配置合并。
+Both absolute and relative paths are supported. Relative paths use the JVM working directory.
+Configuration precedence is `ChineseChronology.configure(Path)`, system property,
+environment variable, `chinese-calendar-config.properties` in the JVM working directory,
+then the built-in resource. If the working-directory file exists but is unreadable or invalid,
+initialization fails without falling back. The library does not read application configuration
+files. Frameworks such as Spring Boot can resolve the active profile and pass the selected path
+to `configure` during application startup, before any chronology or date accesses calendar data.<br>
+支持绝对路径和相对路径。相对路径基于 JVM 工作目录。配置优先级依次为
+`ChineseChronology.configure(Path)`、系统属性、环境变量、JVM 工作目录下的
+`chinese-calendar-config.properties`，最后是 JAR 内置资源。若工作目录下的文件存在但无法读取或无效，
+初始化会失败，不会回退。库本身不读取应用配置文件；Spring Boot 等框架可先解析当前 profile，
+再于应用启动期间、任何历法或日期访问数据之前，将选定路径传给 `configure`。
 
 The ID and type remain `Chinese` and `chinese`. No subclass or additional SPI declaration is needed:<br>
 ID 和类型保持为 `Chinese` 和 `chinese`，无需继承或添加额外的 SPI 声明：
@@ -88,12 +95,15 @@ Each month must have 29 or 30 days, and the leap month cannot be the first entry
 平年为 12 个月，闰年为 13 个月且恰有一个闰月，用 `leap` 前缀标记（如 `29 30 leap29 ...` 表示闰二月）。
 每月只能为 29 或 30 天，闰月不能是首项。
 
-The path is selected when `ChineseChronology` is initialized. Data is loaded and validated on
-first use, then shared by all instances, including SPI-created instances. It cannot be switched
-or reloaded at runtime. A missing or invalid external file causes an error without falling back
-to built-in data. The file replaces the entire data set; it is not merged with built-in years.<br>
-初始化 `ChineseChronology` 时选定路径，首次使用数据时加载并校验，之后所有实例（包括 SPI 创建的实例）
-共享同一套数据，不支持运行时切换或重新加载。外部文件不存在或内容无效时直接报错，不回退到内置数据。
+The system property and environment variable are read when `ChineseChronology` is initialized;
+the working-directory file is checked on first data access. The selected file is loaded and
+validated on first use, then shared by all instances, including SPI-created instances.
+`configure` must be called before that first use and can only be called once. Data cannot be
+switched or reloaded at runtime. A missing or invalid explicitly selected file causes an error
+without falling back. The file replaces the entire data set; it is not merged with built-in years.<br>
+系统属性和环境变量在 `ChineseChronology` 初始化时读取；工作目录配置文件在首次访问数据时检查。选定文件
+在首次使用时加载、校验，并由所有实例（包括 SPI 创建的实例）共享。`configure` 必须在首次使用数据前调用，
+且只能调用一次。运行时不能切换或重新加载数据。显式选定的外部文件不存在或无效时直接报错，不会回退；
 自定义文件替换整套数据，不与内置年份合并。
 
 Serialized chronologies, dates, and periods include a data fingerprint. Deserialization requires
