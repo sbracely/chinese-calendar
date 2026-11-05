@@ -1,6 +1,11 @@
 package io.github.sbracely.chinese.calendar;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.*;
 import java.time.chrono.AbstractChronology;
 import java.time.chrono.ChronoLocalDateTime;
@@ -21,6 +26,14 @@ import static io.github.sbracely.chinese.calendar.ChineseEra.CHINESE_ERA;
 /**
  * The Chinese calendar system.
  * 农历历法系统
+ * <p>
+ * All instances share one data set. Before class initialization, select an external data file
+ * using {@code chinese.calendar.config} in system properties or the classpath resource
+ * {@code application.properties}. System properties take precedence; relative paths use the
+ * JVM working directory. Data is loaded on first use and cannot be reloaded.
+ * 所有实例共享一套数据。本类初始化前，可通过系统属性或类路径资源 {@code application.properties}
+ * 中的 {@code chinese.calendar.config} 指定外部数据文件。系统属性优先，相对路径基于 JVM 工作目录。
+ * 数据在首次使用时加载，之后不可重新加载。
  */
 public final class ChineseChronology extends AbstractChronology implements Serializable {
 
@@ -67,16 +80,16 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     private static final String KEY_MONTH_LENGTH_PREFIX = "month-length.";
 
     /**
-     * The prefix for the resource file name containing the Chinese calendar configuration.
-     * 包含农历历法配置的资源文件名的前缀
+     * The built-in calendar data resource.
+     * 内置农历数据资源。
      */
-    private static final String RESOURCE_PREFIX = "chinese-calendar-config-";
+    private static final String CONFIG_RESOURCE = "chinese-calendar-data-config.properties";
 
     /**
-     * The suffix for the resource file name containing the Chinese calendar configuration.
-     * 包含农历历法配置的资源文件名的后缀
+     * The optional external data path, selected at class initialization.
+     * 本类初始化时选定的可选外部数据路径。
      */
-    private static final String RESOURCE_SUFFIX = ".properties";
+    private static final String CONFIG_FILE = configurationPath();
 
     /**
      * The prefix used in the configuration file for leap months.
@@ -85,8 +98,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     private static final String LEAP_PREFIX = "leap";
 
     /**
-     * The singleton instance of the ChineseChronology.
-     * 单例实例
+     * The shared default chronology instance.
+     * 共享的默认历法实例。
      */
     public static final ChineseChronology INSTANCE;
 
@@ -94,19 +107,25 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * The Chinese calendar id.
      * 农历历法 id
      */
-    private final transient String typeId;
+    private static final String ID = "Chinese";
 
     /**
      * The Chinese calendar type.
      * 农历历法类型
      */
-    private final transient String calendarType;
+    private static final String CALENDAR_TYPE = "chinese";
 
     /**
-     * The calendar data loaded from the configuration file.
-     * 配置文件中的日历数据
+     * The immutable calendar data shared by all instances.
+     * 所有实例共享的不可变历法数据。
      */
-    private transient volatile CalendarData calendarData;
+    private static volatile CalendarData calendarData;
+
+    /**
+     * The cached failure from the single data loading attempt.
+     * 单次数据加载尝试中缓存的异常。
+     */
+    private static DateTimeException initializationFailure;
 
     //-----------------------------------------------------------------------
     // Initialization and construction
@@ -118,25 +137,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * Creates the default Chinese chronology for service loading.
-     * 创建用于服务加载的默认农历历法实例。
+     * Creates a chronology sharing the selected data, for service loading.
+     * 创建共享选定数据的历法实例，供服务加载使用。
      */
     public ChineseChronology() {
-        this("Chinese", "chinese");
-    }
-
-    /**
-     * Create a ChineseChronology for the named id and type.
-     * 创建一个指定id和类型的 ChineseChronology 实例
-     *
-     * @param id           the id of the calendar
-     *                     日历的 id
-     * @param calendarType the typeId of the calendar
-     *                     日历的类型 id
-     */
-    private ChineseChronology(String id, String calendarType) {
-        this.typeId = id;
-        this.calendarType = calendarType;
     }
 
     //-----------------------------------------------------------------------
@@ -349,7 +353,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     @Override
     public String getId() {
-        return typeId;
+        return ID;
     }
 
     /**
@@ -361,7 +365,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     @Override
     public String getCalendarType() {
-        return calendarType;
+        return CALENDAR_TYPE;
     }
 
     /**
@@ -874,17 +878,57 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     //-----------------------------------------------------------------------
 
     /**
+     * Selects the data path from system properties or the application configuration.
+     * 从系统属性或应用配置中选定数据路径。
+     *
+     * @return the external path, or null to use built-in data
+     *         外部路径，使用内置数据时为 null
+     * @throws DateTimeException if the application configuration cannot be read
+     *                           如果应用配置无法读取
+     */
+    private static String configurationPath() {
+        String path = System.getProperty("chinese.calendar.config");
+        if (path != null) {
+            return path;
+        }
+        try (InputStream input = ChineseChronology.class.getClassLoader()
+                .getResourceAsStream("application.properties")) {
+            if (input == null) {
+                return null;
+            }
+            Properties properties = new Properties();
+            properties.load(new InputStreamReader(input, StandardCharsets.UTF_8));
+            return properties.getProperty("chinese.calendar.config");
+        } catch (IOException | IllegalArgumentException e) {
+            throw new DateTimeException("Unable to read application.properties", e);
+        }
+    }
+
+    /**
      * Gets the calendar data, loading it from the configuration file if necessary.
      * 获取日历数据；如果尚未加载，则从配置文件中加载。
      *
      * @return the calendar data for this chronology
      * 此历法的日历数据
      */
-    private CalendarData calendarData() {
+    private static CalendarData calendarData() {
         CalendarData data = calendarData;
         if (data == null) {
-            data = loadCalendarData(typeId, calendarType);
-            calendarData = data;
+            synchronized (ChineseChronology.class) {
+                data = calendarData;
+                if (data == null) {
+                    if (initializationFailure != null) {
+                        throw initializationFailure;
+                    }
+                    try {
+                        data = loadCalendarData();
+                        calendarData = data;
+                    } catch (DateTimeException e) {
+                        initializationFailure = e;
+                        throw e;
+                    }
+                }
+            }
         }
         return data;
     }
@@ -893,28 +937,24 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * Load the calendar data from the configuration file.
      * 加载配置文件中的日历数据
      *
-     * @param typeId       the id of the calendar
-     *                     日历的 id
-     * @param calendarType the typeId of the calendar
-     *                     日历的类型 id
      * @return the loaded CalendarData
      * 加载的 CalendarData
      * @throws DateTimeException if the configuration cannot be read or its data is invalid
      *                           如果无法读取配置或配置数据无效
      */
-    private static CalendarData loadCalendarData(String typeId, String calendarType) {
+    private static CalendarData loadCalendarData() {
         try {
-            Properties props = readConfigProperties(typeId, calendarType);
+            Properties props = readConfigProperties();
             String id = props.getProperty(KEY_ID);
-            if (!typeId.equals(id)) {
+            if (!ID.equals(id)) {
                 throw new IllegalArgumentException("Configuration is for a different calendar: " + id);
             }
             String type = props.getProperty(KEY_TYPE);
-            if (!calendarType.equals(type)) {
+            if (!CALENDAR_TYPE.equals(type)) {
                 throw new IllegalArgumentException("Configuration is for a different calendar type: " + type);
             }
             String version = props.getProperty(KEY_VERSION);
-            if (version == null || version.isEmpty()) {
+            if (version == null || version.isBlank()) {
                 throw new IllegalArgumentException("Configuration does not contain a version");
             }
 
@@ -948,6 +988,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException("bad key: " + key, e);
                 }
+                ChronoField.YEAR_OF_ERA.checkValidValue(year);
                 ParsedMonths parsedMonths = parseMonthLengths(year, (String) entries.getValue());
                 minimumYear = Math.min(minimumYear, year);
                 maximumYear = Math.max(maximumYear, year);
@@ -955,10 +996,19 @@ public final class ChineseChronology extends AbstractChronology implements Seria
                 if (parsedMonths.leapMonth != 0) {
                     leapMonthByYear.put(year, parsedMonths.leapMonth);
                 }
-                daysOfMonthsByYear.put(year, parsedMonths.monthLengths);
+                if (daysOfMonthsByYear.put(year, parsedMonths.monthLengths) != null) {
+                    throw new IllegalArgumentException("Duplicate calendar year: " + year);
+                }
             }
 
-            int epochMonthOffset = minimumYear * maximumMonthsInYear;
+            if (daysOfMonthsByYear.isEmpty()
+                    || (long) maximumYear - minimumYear + 1 != daysOfMonthsByYear.size()) {
+                throw new IllegalArgumentException("Configuration must contain consecutive calendar years");
+            }
+            int epochMonthOffset = Math.multiplyExact(minimumYear, maximumMonthsInYear);
+            // Year-length calculation also indexes the start of the following year.
+            // 年长度计算还会定位下一年的起点。
+            Math.multiplyExact(Math.addExact(maximumYear, 1), maximumMonthsInYear);
             MonthStartData monthStartData = createMonthStartEpochDays(
                     daysOfMonthsByYear.values(), minimumEpochDay, maximumMonthsInYear);
             int[] monthStartEpochDays = monthStartData.monthStartEpochDays;
@@ -967,36 +1017,63 @@ public final class ChineseChronology extends AbstractChronology implements Seria
                     epochMonthOffset, monthStartData.minimumDaysInMonth,
                     monthStartData.maximumDaysInMonth, maximumMonthsInYear,
                     monthStartData.minimumDaysInYear, monthStartData.maximumDaysInYear,
-                    leapMonthByYear, minimumYear, maximumYear);
+                    leapMonthByYear, minimumYear, maximumYear,
+                    dataFingerprint(minimumEpochDay, daysOfMonthsByYear, leapMonthByYear));
         } catch (Exception e) {
-            throw new DateTimeException("Unable to initialize ChineseCalendar: " + typeId + "-" + calendarType, e);
+            throw new DateTimeException("Unable to initialize Chinese calendar from: "
+                    + (CONFIG_FILE == null ? CONFIG_RESOURCE : CONFIG_FILE), e);
         }
     }
 
     /**
-     * Read the configuration properties for the Chinese calendar from the resource file.
-     * 从资源文件中读取农历历法的配置属性
-     *
-     * @param chronologyId the id of the chronology
-     *                     历法的 id
-     * @param calendarType the type of the calendar
-     *                     日历的类型
+     * Reads the external data file or the built-in resource.
+     * 读取外部数据文件或内置资源。
      * @return the properties loaded from the resource file
      * 从资源文件中加载的属性
-     * @throws DateTimeException if the resource is missing or cannot be read
-     *                           如果资源不存在或无法读取
+     * @throws IOException if the configuration cannot be read
+     *                     如果配置无法读取
+     * @throws IllegalArgumentException if the path is blank or the built-in resource is missing
+     *                                  如果路径为空白或内置资源不存在
      */
-    private static Properties readConfigProperties(final String chronologyId, final String calendarType) {
-        String resourceName = RESOURCE_PREFIX + chronologyId + "-" + calendarType + RESOURCE_SUFFIX;
-        try (InputStream is = ChineseChronology.class.getClassLoader().getResourceAsStream(resourceName)) {
+    private static Properties readConfigProperties() throws IOException {
+        if (CONFIG_FILE != null && CONFIG_FILE.isBlank()) {
+            throw new IllegalArgumentException("External configuration path is blank");
+        }
+        try (InputStream is = CONFIG_FILE == null
+                ? ChineseChronology.class.getClassLoader().getResourceAsStream(CONFIG_RESOURCE)
+                : Files.newInputStream(Path.of(CONFIG_FILE))) {
             if (null == is) {
-                throw new IllegalArgumentException("Config resource not found: " + resourceName);
+                throw new IllegalArgumentException("Config resource not found: " + CONFIG_RESOURCE);
             }
             Properties properties = new Properties();
             properties.load(is);
             return properties;
-        } catch (Exception e) {
-            throw new DateTimeException("Error reading config resource: " + resourceName, e);
+        }
+    }
+
+    /**
+     * Computes a fingerprint of effective data, independent of file layout and metadata.
+     * 计算有效数据的指纹，不受文件排版和元数据影响。
+     *
+     * @param minimumEpochDay the first supported epoch day
+     *                        首个支持的纪元天数
+     * @param months the month lengths ordered by year
+     *               按年份排序的月份天数
+     * @param leapMonths the leap-month numbers by year
+     *                   各年的闰月编号
+     * @return the SHA-256 data fingerprint
+     *         SHA-256 数据指纹
+     */
+    private static String dataFingerprint(int minimumEpochDay, Map<Integer, int[]> months,
+                                          Map<Integer, Integer> leapMonths) {
+        StringBuilder content = new StringBuilder().append(minimumEpochDay);
+        months.forEach((year, lengths) -> content.append('|').append(year).append(':')
+                .append(Arrays.toString(lengths)).append(':').append(leapMonths.getOrDefault(year, 0)));
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(content.toString().getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new AssertionError(e);
         }
     }
 
@@ -1023,6 +1100,9 @@ public final class ChineseChronology extends AbstractChronology implements Seria
             String monthLengthString = monthLengthStringArray[i];
             String numericMonthLength = monthLengthString;
             if (numericMonthLength.startsWith(LEAP_PREFIX)) {
+                if (i == 0) {
+                    throw new IllegalArgumentException("Leap month must follow a regular month in year: " + year);
+                }
                 numericMonthLength = numericMonthLength.substring(LEAP_PREFIX.length());
                 leapMonth = i;
             }
@@ -1030,6 +1110,9 @@ public final class ChineseChronology extends AbstractChronology implements Seria
                 monthLengthIntArray[i] = Integer.parseInt(numericMonthLength);
             } catch (NumberFormatException e) {
                 throw new IllegalArgumentException("bad month length: " + monthLengthString + " in year: " + year, e);
+            }
+            if (monthLengthIntArray[i] != 29 && monthLengthIntArray[i] != 30) {
+                throw new IllegalArgumentException("Invalid month length: " + monthLengthString + " in year: " + year);
             }
         }
         return new ParsedMonths(monthLengthIntArray, leapMonth);
@@ -1094,7 +1177,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     private static MonthStartData createMonthStartEpochDays(Collection<int[]> daysOfMonthsCollection,
                                                             int minimumEpochDay, int maximumMonthsInYear) {
-        int[] monthStartEpochDays = new int[daysOfMonthsCollection.size() * maximumMonthsInYear + 1];
+        int[] monthStartEpochDays = new int[Math.addExact(
+                Math.multiplyExact(daysOfMonthsCollection.size(), maximumMonthsInYear), 1)];
         int minimumDaysInMonth = Integer.MAX_VALUE;
         int maximumDaysInMonth = Integer.MIN_VALUE;
         int minimumDaysInYear = Integer.MAX_VALUE;
@@ -1108,7 +1192,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
                     throw new IllegalArgumentException("Invalid month length: " + dayOfMonth);
                 }
                 monthStartEpochDays[index++] = minimumEpochDay;
-                minimumEpochDay += dayOfMonth;
+                minimumEpochDay = Math.addExact(minimumEpochDay, dayOfMonth);
                 daysInYear += dayOfMonth;
                 minimumDaysInMonth = Math.min(minimumDaysInMonth, dayOfMonth);
                 maximumDaysInMonth = Math.max(maximumDaysInMonth, dayOfMonth);
@@ -1562,11 +1646,14 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                            支持的最早历法年份
      * @param maximumYear         the latest supported proleptic year
      *                            支持的最晚历法年份
+     * @param fingerprint         the effective calendar data fingerprint
+     *                            有效历法数据指纹
      */
     private record CalendarData(int[] monthStartEpochDays, int minimumEpochDay, int maximumEpochDay,
                                 int epochMonthOffset, int minimumDaysInMonth, int maximumDaysInMonth,
                                 int maximumMonthsInYear, int minimumDaysInYear, int maximumDaysInYear,
-                                Map<Integer, Integer> leapMonthByYear, int minimumYear, int maximumYear) {
+                                Map<Integer, Integer> leapMonthByYear, int minimumYear, int maximumYear,
+                                String fingerprint) {
         /**
          * Creates immutable calendar data by copying mutable input values.
          * 通过复制可变输入值创建不可变的历法数据。
@@ -1622,7 +1709,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     @Serial
     Object writeReplace() {
-        return new Ser(typeId, calendarType);
+        return new Ser(ID, CALENDAR_TYPE, calendarData().fingerprint);
     }
 
     /**
@@ -1646,23 +1733,32 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *               要恢复的历法标识符。
      * @param calendarType the calendar type to restore.
      *                     要恢复的日历类型。
+     * @param fingerprint the required calendar data fingerprint
+     *                    所需的历法数据指纹
      */
-    private record Ser(String typeId, String calendarType) implements Serializable {
+    private record Ser(String typeId, String calendarType, String fingerprint) implements Serializable {
         /**
          * Resolves the proxy to the chronology singleton.
          * 将代理对象解析为历法单例。
          *
          * @return the matching chronology singleton
          *         匹配的历法单例
-         * @throws ObjectStreamException if the proxy identifies an unknown chronology
-         *                               如果代理对象标识了未知历法，则抛出此异常
+         * @throws ObjectStreamException if the chronology or calendar data does not match
+         *                               如果历法或历法数据不匹配
          */
         @Serial
         private Object readResolve() throws ObjectStreamException {
-            if (INSTANCE.getId().equals(typeId) && INSTANCE.getCalendarType().equals(calendarType)) {
-                return INSTANCE;
+            if (!ID.equals(typeId) || !CALENDAR_TYPE.equals(calendarType)) {
+                throw new InvalidObjectException("Unknown Chinese chronology: " + typeId + "-" + calendarType);
             }
-            throw new InvalidObjectException("Unknown Chinese chronology: " + typeId + "-" + calendarType);
+            try {
+                if (!calendarData().fingerprint.equals(fingerprint)) {
+                    throw new InvalidObjectException("Chinese calendar data fingerprint mismatch");
+                }
+                return INSTANCE;
+            } catch (DateTimeException e) {
+                throw new InvalidObjectException("Unable to load Chinese calendar data", e);
+            }
         }
     }
 

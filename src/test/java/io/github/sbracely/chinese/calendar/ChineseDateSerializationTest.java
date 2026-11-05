@@ -3,6 +3,7 @@ package io.github.sbracely.chinese.calendar;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.ByteArrayInputStream;
@@ -96,6 +97,18 @@ class ChineseDateSerializationTest {
         assertThatThrownBy(() -> deserialize(bytes.toByteArray()))
                 .isInstanceOf(InvalidObjectException.class)
                 .hasMessage("Deserialization via serialization delegate");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"Unknown,chinese,invalid", "Chinese,unknown,invalid", "Chinese,chinese,invalid",
+            "Chinese,chinese,"})
+    void rejectsUnknownOrUnverifiableChronology(String id, String type, String fingerprint) throws Exception {
+        var constructor = Class.forName(ChineseChronology.class.getName() + "$Ser")
+                .getDeclaredConstructor(String.class, String.class, String.class);
+        constructor.setAccessible(true);
+        byte[] bytes = serialize(constructor.newInstance(id, type, fingerprint));
+
+        assertThatThrownBy(() -> deserialize(bytes)).isInstanceOf(InvalidObjectException.class);
     }
 
     private static byte[] serialize(Object value) throws Exception {
