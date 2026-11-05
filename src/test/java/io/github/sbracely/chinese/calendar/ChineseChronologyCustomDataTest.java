@@ -78,6 +78,11 @@ class ChineseChronologyCustomDataTest {
     }
 
     @Test
+    void spiProviderTakesPrecedenceOverSystemProperty() throws Exception {
+        runWithSpiProvider("shared", fixture("common-only").toString(), fixture("custom").toString());
+    }
+
+    @Test
     void usesWorkingDirectoryConfigurationBeforeBuiltInData() throws Exception {
         Path localConfig = workingDirectoryConfiguration("custom");
         run("shared", null, localConfig.toString());
@@ -160,11 +165,24 @@ class ChineseChronologyCustomDataTest {
 
     private void runInChild(String action, String config, String environmentPath, String... arguments)
             throws Exception {
+        runInChild(action, config, environmentPath, null, arguments);
+    }
+
+    private void runWithSpiProvider(String action, String config, String providerPath, String... arguments)
+            throws Exception {
+        runInChild(action, config, null, providerPath, arguments);
+    }
+
+    private void runInChild(String action, String config, String environmentPath, String providerPath,
+                            String[] arguments) throws Exception {
         var command = new ArrayList<String>();
         String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
         command.add(Path.of(System.getProperty("java.home"), "bin", executable).toString());
         if (config != null) {
             command.add("-Dchinese.calendar.config=" + config);
+        }
+        if (providerPath != null) {
+            command.add("-Dtest.chinese.calendar.config.spi=" + providerPath);
         }
         String separator = System.getProperty("path.separator");
         String classpath = Stream.of(System.getProperty("surefire.test.class.path",

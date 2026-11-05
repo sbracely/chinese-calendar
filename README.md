@@ -66,15 +66,44 @@ java -Dchinese.calendar.config=/etc/chinese-calendar/calendar.properties -jar ap
 CHINESE_CALENDAR_CONFIG=/etc/chinese-calendar/calendar.properties java -jar app.jar
 ```
 
+An optional Java SPI provider can supply the configuration path under the
+`chinese.calendar.config` property. Implement `ConfigProvider` and register its public
+no-argument implementation in
+`META-INF/services/io.github.sbracely.chinese.calendar.spi.ConfigProvider`:<br>
+也可通过 Java SPI 提供配置路径，属性名为 `chinese.calendar.config`。实现 `ConfigProvider`，
+并在 `META-INF/services/io.github.sbracely.chinese.calendar.spi.ConfigProvider` 中注册其公开无参实现类：
+
+```java
+public class CalendarConfigProvider implements ConfigProvider {
+    @Override
+    public String getChineseCalendarConfig() {
+        return "/etc/chinese-calendar/calendar.properties";
+    }
+}
+```
+
+```text
+com.example.CalendarConfigProvider
+```
+
+`ServiceLoader` creates the provider itself; it is not a Spring bean and does not receive
+constructor injection. Register at most one provider. For Spring `Environment` configuration,
+use Spring startup code to resolve the path and call `configure(Path)` before calendar data is
+first accessed.<br>
+`ServiceLoader` 会自行创建提供者，因此它不是 Spring Bean，也不会进行构造器注入。最多注册一个提供者。
+若配置来自 Spring `Environment`，应在 Spring 启动阶段解析路径，并在首次访问历法数据前调用
+`configure(Path)`。
+
 Both absolute and relative paths are supported. Relative paths use the JVM working directory.
-Configuration precedence is `ChineseChronology.configure(Path)`, system property,
-environment variable, `chinese-calendar-config.properties` in the JVM working directory,
-then the built-in resource. If the working-directory file exists but is unreadable or invalid,
-initialization fails without falling back. The library does not read application configuration
-files. Frameworks such as Spring Boot can resolve the active profile and pass the selected path
-to `configure` during application startup, before any chronology or date accesses calendar data.<br>
+Configuration precedence is `ChineseChronology.configure(Path)`, SPI provider,
+system property, environment variable, `chinese-calendar-config.properties` in the JVM working
+directory, then the built-in resource. If the working-directory file exists but is unreadable or
+invalid, initialization fails without falling back. The library does not read application
+configuration files. Frameworks such as Spring Boot can resolve the active profile and pass the
+selected path to `configure` during application startup, before any chronology or date accesses
+calendar data.<br>
 支持绝对路径和相对路径。相对路径基于 JVM 工作目录。配置优先级依次为
-`ChineseChronology.configure(Path)`、系统属性、环境变量、JVM 工作目录下的
+`ChineseChronology.configure(Path)`、SPI 提供者、系统属性、环境变量、JVM 工作目录下的
 `chinese-calendar-config.properties`，最后是 JAR 内置资源。若工作目录下的文件存在但无法读取或无效，
 初始化会失败，不会回退。库本身不读取应用配置文件；Spring Boot 等框架可先解析当前 profile，
 再于应用启动期间、任何历法或日期访问数据之前，将选定路径传给 `configure`。
@@ -95,13 +124,13 @@ Each month must have 29 or 30 days, and the leap month cannot be the first entry
 平年为 12 个月，闰年为 13 个月且恰有一个闰月，用 `leap` 前缀标记（如 `29 30 leap29 ...` 表示闰二月）。
 每月只能为 29 或 30 天，闰月不能是首项。
 
-The system property and environment variable are read when `ChineseChronology` is initialized;
-the working-directory file is checked on first data access. The selected file is loaded and
-validated on first use, then shared by all instances, including SPI-created instances.
+The SPI provider, system property, and environment variable are read when `ChineseChronology` is
+initialized; the working-directory file is checked on first data access. The selected file is
+loaded and validated on first use, then shared by all instances, including SPI-created instances.
 `configure` must be called before that first use and can only be called once. Data cannot be
 switched or reloaded at runtime. A missing or invalid explicitly selected file causes an error
 without falling back. The file replaces the entire data set; it is not merged with built-in years.<br>
-系统属性和环境变量在 `ChineseChronology` 初始化时读取；工作目录配置文件在首次访问数据时检查。选定文件
+SPI 提供者、系统属性和环境变量在 `ChineseChronology` 初始化时读取；工作目录配置文件在首次访问数据时检查。选定文件
 在首次使用时加载、校验，并由所有实例（包括 SPI 创建的实例）共享。`configure` 必须在首次使用数据前调用，
 且只能调用一次。运行时不能切换或重新加载数据。显式选定的外部文件不存在或无效时直接报错，不会回退；
 自定义文件替换整套数据，不与内置年份合并。

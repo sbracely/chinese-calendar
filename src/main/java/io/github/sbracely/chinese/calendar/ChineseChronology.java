@@ -1,5 +1,8 @@
 package io.github.sbracely.chinese.calendar;
 
+import io.github.sbracely.chinese.calendar.spi.ConfigLoader;
+import io.github.sbracely.chinese.calendar.spi.ConfigProvider;
+
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -28,14 +31,15 @@ import static io.github.sbracely.chinese.calendar.ChineseEra.CHINESE_ERA;
  * 农历历法系统
  * <p>
  * All instances share one data set. An external data file can be selected before the first
- * calendar-data access using {@link #configure(Path)}, the {@code chinese.calendar.config}
+ * calendar-data access using {@link #configure(Path)}, a {@link ConfigProvider},
+ * the {@code chinese.calendar.config}
  * system property, or the {@code CHINESE_CALENDAR_CONFIG} environment variable, in that order
- * of precedence. If neither is set, {@code chinese-calendar-config.properties} in the JVM
+ * of precedence. If none is set, {@code chinese-calendar-config.properties} in the JVM
  * working directory takes precedence over the built-in resource. Relative paths use the JVM
  * working directory. Data cannot be reloaded.
  * 所有实例共享一套数据。首次访问历法数据前，可通过 {@link #configure(Path)}、
- * 系统属性 {@code chinese.calendar.config} 或环境变量 {@code CHINESE_CALENDAR_CONFIG}
- * 指定外部数据文件，优先级依次降低。若均未指定，则优先读取 JVM 工作目录下的
+ * SPI 配置提供者、系统属性 {@code chinese.calendar.config} 或环境变量
+ * {@code CHINESE_CALENDAR_CONFIG} 指定外部数据文件，优先级依次降低。若均未指定，则优先读取 JVM 工作目录下的
  * {@code chinese-calendar-config.properties}，再读取 JAR 内置资源。相对路径基于 JVM 工作目录，
  * 数据不可重新加载。
  */
@@ -90,10 +94,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     private static final String CONFIG_RESOURCE = "chinese-calendar-config.properties";
 
     /**
-     * The optional external data path, selected from the system property or environment.
-     * 从系统属性或环境变量选定的可选外部数据路径。
+     * The optional external data path, selected from the SPI provider, system property, or environment.
+     * 从 SPI 提供者、系统属性或环境变量选定的可选外部数据路径。
      */
-    private static volatile String configFile = systemConfigurationPath();
+    private static volatile String configFile = configurationPath();
 
     /**
      * The JVM working directory used to resolve relative configuration paths.
@@ -920,8 +924,11 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     // 初始化日历数据
     //-----------------------------------------------------------------------
 
-    private static String systemConfigurationPath() {
-        String path = System.getProperty("chinese.calendar.config");
+    private static String configurationPath() {
+        String path = ConfigLoader.getChineseCalendarConfig();
+        if (path == null) {
+            path = System.getProperty("chinese.calendar.config");
+        }
         return path != null ? path : System.getenv("CHINESE_CALENDAR_CONFIG");
     }
 
@@ -1054,6 +1061,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * Reads configuration in the following priority order:
      * <ol>
      *   <li>{@link #configure(Path)}</li>
+     *   <li>{@link ConfigProvider} configuration path</li>
      *   <li>{@code chinese.calendar.config} system property</li>
      *   <li>{@code CHINESE_CALENDAR_CONFIG} environment variable</li>
      *   <li>{@code chinese-calendar-config.properties} in the JVM working directory</li>
@@ -1062,6 +1070,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * 按以下优先级读取配置：
      * <ol>
      *   <li>{@link #configure(Path)}</li>
+     *   <li>{@link ConfigProvider} 提供的配置文件路径</li>
      *   <li>{@code chinese.calendar.config} 系统属性</li>
      *   <li>{@code CHINESE_CALENDAR_CONFIG} 环境变量</li>
      *   <li>JVM 工作目录下的 {@code chinese-calendar-config.properties}</li>
