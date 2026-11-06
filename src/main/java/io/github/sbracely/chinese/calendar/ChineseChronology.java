@@ -1,21 +1,16 @@
 package io.github.sbracely.chinese.calendar;
 
 import io.github.sbracely.chinese.calendar.spi.ConfigLoader;
-import io.github.sbracely.chinese.calendar.spi.ConfigProvider;
+import io.github.sbracely.chinese.calendar.spi.ConfigData;
+import io.github.sbracely.chinese.calendar.spi.ConfigSource;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.*;
 import java.time.chrono.AbstractChronology;
 import java.time.chrono.ChronoLocalDateTime;
 import java.time.chrono.ChronoZonedDateTime;
 import java.time.chrono.Era;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
@@ -31,17 +26,15 @@ import static io.github.sbracely.chinese.calendar.ChineseEra.CHINESE_ERA;
  * 农历历法系统
  * <p>
  * All instances share one data set. An external data file can be selected before the first
- * calendar-data access using {@link #configure(Path)}, a {@link ConfigProvider},
- * the {@code chinese.calendar.config}
- * system property, or the {@code CHINESE_CALENDAR_CONFIG} environment variable, in that order
- * of precedence. If none is set, {@code chinese-calendar-config.properties} in the JVM
- * working directory takes precedence over the built-in resource. Relative paths use the JVM
- * working directory. Data cannot be reloaded.
+ * calendar-data access using {@link #configure(Path)} or an ordered {@link ConfigSource}.
+ * Sources are checked by ascending order; built-in sources use 100 for the system property,
+ * 200 for the environment variable, 300 for the working-directory file, and 400 for the
+ * built-in resource. Relative paths use the JVM working directory. Data cannot be reloaded.
  * 所有实例共享一套数据。首次访问历法数据前，可通过 {@link #configure(Path)}、
- * SPI 配置提供者、系统属性 {@code chinese.calendar.config} 或环境变量
- * {@code CHINESE_CALENDAR_CONFIG} 指定外部数据文件，优先级依次降低。若均未指定，则优先读取 JVM 工作目录下的
- * {@code chinese-calendar-config.properties}，再读取 JAR 内置资源。相对路径基于 JVM 工作目录，
- * 数据不可重新加载。
+ * 有序的 {@link ConfigSource} 配置来源指定外部数据。
+ * 内置来源依次检查系统属性 {@code chinese.calendar.config}、环境变量
+ * {@code CHINESE_CALENDAR_CONFIG}、JVM 工作目录文件和 JAR 内置资源。
+ * 相对路径基于 JVM 工作目录，数据不可重新加载。
  */
 public final class ChineseChronology extends AbstractChronology implements Serializable {
 
@@ -58,61 +51,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     private static final String RESOURCE_BUNDLE_CALENDAR_NAME = "name";
 
     /**
-     * The keys used in the configuration file for the Chinese calendar.
-     * 配置文件中用于农历历法的键
-     */
-    private static final String KEY_ID = "id";
-
-    /**
-     * The key used in the configuration file for the type of the Chinese calendar.
-     * 配置文件中用于农历历法类型的键
-     */
-    private static final String KEY_TYPE = "type";
-
-    /**
-     * The key used in the configuration file for the version of the Chinese calendar.
-     * 配置文件中用于农历历法版本的键
-     */
-    private static final String KEY_VERSION = "version";
-
-    /**
-     * The key used in the configuration file for the ISO start date of the Chinese calendar.
-     * 配置文件中用于农历历法 ISO 起始日期的键
-     */
-    private static final String KEY_ISO_START = "iso-start";
-
-    /**
-     * The prefix used in the configuration file for the month lengths of the Chinese calendar.
-     * 配置文件中用于农历历法月份长度的前缀
-     */
-    private static final String KEY_MONTH_LENGTH_PREFIX = "month-length.";
-
-    /**
-     * The built-in calendar data resource.
-     * 内置农历数据资源。
-     */
-    private static final String CONFIG_RESOURCE = "chinese-calendar-config.properties";
-
-    /**
-     * The optional external data path, selected from the SPI provider, system property, or environment.
-     * 从 SPI 提供者、系统属性或环境变量选定的可选外部数据路径。
-     */
-    private static volatile String configFile = configurationPath();
-
-    /**
-     * The JVM working directory used to resolve relative configuration paths.
-     * 用于解析相对配置路径的 JVM 工作目录。
-     */
-    private static final Path WORKING_DIRECTORY = Path.of(System.getProperty("user.dir"))
-            .toAbsolutePath().normalize();
-
-    /**
-     * The prefix used in the configuration file for leap months.
-     * 配置文件中用于闰月的前缀
-     */
-    private static final String LEAP_PREFIX = "leap";
-
-    /**
      * The shared default chronology instance.
      * 共享的默认历法实例。
      */
@@ -122,13 +60,13 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * The Chinese calendar id.
      * 农历历法 id
      */
-    private static final String ID = "Chinese";
+    static final String ID = "Chinese";
 
     /**
      * The Chinese calendar type.
      * 农历历法类型
      */
-    private static final String CALENDAR_TYPE = "chinese";
+    static final String CALENDAR_TYPE = "chinese";
 
     /**
      * The immutable calendar data shared by all instances.
@@ -141,12 +79,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * 单次数据加载尝试中缓存的异常。
      */
     private static DateTimeException initializationFailure;
-
-    /**
-     * Whether an application has already selected a configuration path explicitly.
-     * 应用是否已显式选择过配置路径。
-     */
-    private static boolean applicationConfigurationSet;
 
     //-----------------------------------------------------------------------
     // Initialization and construction
@@ -183,11 +115,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         if (path.toString().isBlank()) {
             throw new IllegalArgumentException("External configuration path is blank");
         }
-        if (calendarData != null || initializationFailure != null || applicationConfigurationSet) {
+        if (calendarData != null || initializationFailure != null) {
             throw new IllegalStateException("Chinese calendar data configuration is already fixed");
         }
-        configFile = resolvePath(path).toString();
-        applicationConfigurationSet = true;
+        ConfigLoader.configure(path);
     }
 
     //-----------------------------------------------------------------------
@@ -924,18 +855,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     // 初始化日历数据
     //-----------------------------------------------------------------------
 
-    private static String configurationPath() {
-        String path = ConfigLoader.getChineseCalendarConfig();
-        if (path == null) {
-            path = System.getProperty("chinese.calendar.config");
-        }
-        return path != null ? path : System.getenv("CHINESE_CALENDAR_CONFIG");
-    }
-
-    private static Path resolvePath(Path path) {
-        return path.isAbsolute() ? path.normalize() : WORKING_DIRECTORY.resolve(path).normalize();
-    }
-
     /**
      * Gets the calendar data, loading it from the configuration file if necessary.
      * 获取日历数据；如果尚未加载，则从配置文件中加载。
@@ -975,307 +894,49 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                           如果无法读取配置或配置数据无效
      */
     private static CalendarData loadCalendarData() {
+        String configSource = "configuration source";
         try {
-            Properties props = readConfigProperties();
-            String id = props.getProperty(KEY_ID);
-            if (!ID.equals(id)) {
-                throw new IllegalArgumentException("Configuration is for a different calendar: " + id);
-            }
-            String type = props.getProperty(KEY_TYPE);
-            if (!CALENDAR_TYPE.equals(type)) {
-                throw new IllegalArgumentException("Configuration is for a different calendar type: " + type);
-            }
-            String version = props.getProperty(KEY_VERSION);
-            if (version == null || version.isBlank()) {
-                throw new IllegalArgumentException("Configuration does not contain a version");
-            }
-
-            String isoStartValue = props.getProperty(KEY_ISO_START);
-            if (isoStartValue == null || isoStartValue.isEmpty()) {
-                throw new IllegalArgumentException("Configuration does not contain a ISO start date");
-            }
-
-            int minimumEpochDay;
-            try {
-                minimumEpochDay = Math.toIntExact(LocalDate.parse(
-                        isoStartValue, DateTimeFormatter.ISO_LOCAL_DATE).toEpochDay());
-            } catch (DateTimeParseException e) {
-                throw new IllegalArgumentException("Invalid ISO start date, expected format yyyy-MM-dd", e);
-            }
-
-            Map<Integer, int[]> daysOfMonthsByYear = new TreeMap<>();
-            Map<Integer, Integer> leapMonthByYear = new HashMap<>();
-            int minimumYear = Integer.MAX_VALUE;
-            int maximumYear = Integer.MIN_VALUE;
-            int maximumMonthsInYear = Integer.MIN_VALUE;
-            int monthLengthPrefixLength = KEY_MONTH_LENGTH_PREFIX.length();
-            for (Map.Entry<Object, Object> entries : props.entrySet()) {
-                String key = (String) entries.getKey();
-                if (!key.startsWith(KEY_MONTH_LENGTH_PREFIX)) {
-                    continue;
-                }
-                int year;
-                try {
-                    year = Integer.parseInt(key.substring(monthLengthPrefixLength));
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("bad key: " + key, e);
-                }
-                ChronoField.YEAR_OF_ERA.checkValidValue(year);
-                ParsedMonths parsedMonths = parseMonthLengths(year, (String) entries.getValue());
-                minimumYear = Math.min(minimumYear, year);
-                maximumYear = Math.max(maximumYear, year);
-                maximumMonthsInYear = Math.max(maximumMonthsInYear, parsedMonths.monthLengths.length);
-                if (parsedMonths.leapMonth != 0) {
-                    leapMonthByYear.put(year, parsedMonths.leapMonth);
-                }
-                if (daysOfMonthsByYear.put(year, parsedMonths.monthLengths) != null) {
-                    throw new IllegalArgumentException("Duplicate calendar year: " + year);
-                }
-            }
-
-            if (daysOfMonthsByYear.isEmpty()
-                    || (long) maximumYear - minimumYear + 1 != daysOfMonthsByYear.size()) {
-                throw new IllegalArgumentException("Configuration must contain consecutive calendar years");
-            }
-            int epochMonthOffset = Math.multiplyExact(minimumYear, maximumMonthsInYear);
-            // Year-length calculation also indexes the start of the following year.
-            // 年长度计算还会定位下一年的起点。
-            Math.multiplyExact(Math.addExact(maximumYear, 1), maximumMonthsInYear);
-            MonthStartData monthStartData = createMonthStartEpochDays(
-                    daysOfMonthsByYear.values(), minimumEpochDay, maximumMonthsInYear);
-            int[] monthStartEpochDays = monthStartData.monthStartEpochDays;
-            int maximumEpochDay = monthStartEpochDays[monthStartEpochDays.length - 1] - 1;
-            return new CalendarData(monthStartEpochDays, minimumEpochDay, maximumEpochDay,
-                    epochMonthOffset, monthStartData.minimumDaysInMonth,
-                    monthStartData.maximumDaysInMonth, maximumMonthsInYear,
-                    monthStartData.minimumDaysInYear, monthStartData.maximumDaysInYear,
-                    leapMonthByYear, minimumYear, maximumYear,
-                    dataFingerprint(minimumEpochDay, daysOfMonthsByYear, leapMonthByYear));
+            ConfigData configData = loadConfigData();
+            configSource = configData.description();
+            ChineseCalendarDataParser.Result parsed = ChineseCalendarDataParser.parse(configData.properties());
+            return new CalendarData(parsed.monthStartEpochDays(), parsed.minimumEpochDay(), parsed.maximumEpochDay(),
+                    parsed.epochMonthOffset(), parsed.minimumDaysInMonth(), parsed.maximumDaysInMonth(),
+                    parsed.maximumMonthsInYear(), parsed.minimumDaysInYear(), parsed.maximumDaysInYear(),
+                    parsed.leapMonthByYear(), parsed.minimumYear(), parsed.maximumYear(), parsed.fingerprint());
         } catch (Exception e) {
             throw new DateTimeException("Unable to initialize Chinese calendar from: "
-                    + (configFile == null ? CONFIG_RESOURCE : configFile), e);
+                    + configSource, e);
         }
     }
 
     /**
-     * Reads configuration in the following priority order:
+     * Selects the explicit path from {@link #configure(Path)} first. Otherwise, configuration
+     * sources are ordered by {@link ConfigSource#getOrder()}.
+     * The built-in source orders are:
      * <ol>
-     *   <li>{@link #configure(Path)}</li>
-     *   <li>{@link ConfigProvider} configuration path</li>
-     *   <li>{@code chinese.calendar.config} system property</li>
-     *   <li>{@code CHINESE_CALENDAR_CONFIG} environment variable</li>
-     *   <li>{@code chinese-calendar-config.properties} in the JVM working directory</li>
-     *   <li>The built-in {@code chinese-calendar-config.properties} resource</li>
+     *   <li>100: {@code chinese.calendar.config} system property</li>
+     *   <li>200: {@code CHINESE_CALENDAR_CONFIG} environment variable</li>
+     *   <li>300: working-directory {@code chinese-calendar-config.properties}</li>
+     *   <li>400: built-in {@code chinese-calendar-config.properties} resource</li>
      * </ol>
-     * 按以下优先级读取配置：
+     * 优先读取 {@link #configure(Path)} 显式指定的路径；否则按
+     * {@link ConfigSource#getOrder()} 排序配置来源。
+     * 内置来源的顺序值如下：
      * <ol>
-     *   <li>{@link #configure(Path)}</li>
-     *   <li>{@link ConfigProvider} 提供的配置文件路径</li>
-     *   <li>{@code chinese.calendar.config} 系统属性</li>
-     *   <li>{@code CHINESE_CALENDAR_CONFIG} 环境变量</li>
-     *   <li>JVM 工作目录下的 {@code chinese-calendar-config.properties}</li>
-     *   <li>JAR 内置的 {@code chinese-calendar-config.properties} 资源</li>
+     *   <li>100：{@code chinese.calendar.config} 系统属性</li>
+     *   <li>200：{@code CHINESE_CALENDAR_CONFIG} 环境变量</li>
+     *   <li>300：JVM 工作目录下的 {@code chinese-calendar-config.properties}</li>
+     *   <li>400：JAR 内置的 {@code chinese-calendar-config.properties} 资源</li>
      * </ol>
-     * @return the properties loaded from the resource file
-     * 从资源文件中加载的属性
-     * @throws IOException if the configuration cannot be read
-     *                     如果配置无法读取
-     * @throws IllegalArgumentException if the path is blank or the built-in resource is missing
-     *                                  如果路径为空白或内置资源不存在
+     * @return the selected configuration data
+     *         选中的配置数据
+     * @throws IOException if a configuration source cannot be evaluated
+     *                     如果配置来源无法评估
+     * @throws IllegalArgumentException if the explicit path is blank
+     *                                  如果显式路径为空白
      */
-    private static Properties readConfigProperties() throws IOException {
-        // 1-3: configFile reflects configure(Path) > system property > environment variable.
-        // 1-3：configFile 已按 configure(Path) > 系统属性 > 环境变量的顺序确定。
-        if (configFile != null && configFile.isBlank()) {
-            throw new IllegalArgumentException("External configuration path is blank");
-        }
-        // 4-5: if none is set, check the working-directory file, then the built-in resource.
-        // 4-5：若均未指定，则依次检查工作目录文件和 JAR 内置资源。
-        Path externalPath = configFile == null
-                ? WORKING_DIRECTORY.resolve(CONFIG_RESOURCE)
-                : resolvePath(Path.of(configFile));
-        // Fall back only when the working-directory file is confirmed missing, not unreadable.
-        // 仅在确认工作目录文件不存在时回退，文件无法读取时应直接报错。
-        InputStream input;
-        if (configFile == null && Files.notExists(externalPath)) {
-            input = ChineseChronology.class.getClassLoader().getResourceAsStream(CONFIG_RESOURCE);
-            if (input == null) {
-                throw new IllegalArgumentException("Config resource not found: " + CONFIG_RESOURCE);
-            }
-        } else {
-            input = Files.newInputStream(externalPath);
-        }
-        try (InputStream is = input) {
-            Properties properties = new Properties();
-            properties.load(is);
-            return properties;
-        }
-    }
-
-    /**
-     * Computes a fingerprint of effective data, independent of file layout and metadata.
-     * 计算有效数据的指纹，不受文件排版和元数据影响。
-     *
-     * @param minimumEpochDay the first supported epoch day
-     *                        首个支持的纪元天数
-     * @param months the month lengths ordered by year
-     *               按年份排序的月份天数
-     * @param leapMonths the leap-month numbers by year
-     *                   各年的闰月编号
-     * @return the SHA-256 data fingerprint
-     *         SHA-256 数据指纹
-     */
-    private static String dataFingerprint(int minimumEpochDay, Map<Integer, int[]> months,
-                                          Map<Integer, Integer> leapMonths) {
-        StringBuilder content = new StringBuilder().append(minimumEpochDay);
-        months.forEach((year, lengths) -> content.append('|').append(year).append(':')
-                .append(Arrays.toString(lengths)).append(':').append(leapMonths.getOrDefault(year, 0)));
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(content.toString().getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new AssertionError(e);
-        }
-    }
-
-    /**
-     * Parse the month lengths for a given year from the configuration line.
-     * 从配置行中解析给定年份的月份长度
-     *
-     * @param year                  the year for which the month lengths are being parsed
-     *                              正在解析月份长度的年份
-     * @param monthLengthConfigLine the month length configuration line for the year
-     *                              年份对应的月份长度配置行
-     * @return a ParsedMonths object containing the month lengths and leap month index
-     * 包含月份长度和闰月索引的 ParsedMonths 对象
-     * @throws IllegalArgumentException if the month count, leap-month count,
-     *                                  or numeric month length is invalid
-     *                                  如果月份数量、闰月数量或月份天数的数字格式无效
-     */
-    private static ParsedMonths parseMonthLengths(int year, String monthLengthConfigLine) {
-        String[] monthLengthStringArray = createMonthLengthStringArray(year, monthLengthConfigLine);
-        int length = monthLengthStringArray.length;
-        int[] monthLengthIntArray = new int[length];
-        int leapMonth = 0;
-        for (int i = 0; i < length; i++) {
-            String monthLengthString = monthLengthStringArray[i];
-            String numericMonthLength = monthLengthString;
-            if (numericMonthLength.startsWith(LEAP_PREFIX)) {
-                if (i == 0) {
-                    throw new IllegalArgumentException("Leap month must follow a regular month in year: " + year);
-                }
-                numericMonthLength = numericMonthLength.substring(LEAP_PREFIX.length());
-                leapMonth = i;
-            }
-            try {
-                monthLengthIntArray[i] = Integer.parseInt(numericMonthLength);
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("bad month length: " + monthLengthString + " in year: " + year, e);
-            }
-            if (monthLengthIntArray[i] != 29 && monthLengthIntArray[i] != 30) {
-                throw new IllegalArgumentException("Invalid month length: " + monthLengthString + " in year: " + year);
-            }
-        }
-        return new ParsedMonths(monthLengthIntArray, leapMonth);
-    }
-
-    /**
-     * Create an array of month length strings for a given year from the configuration line.
-     * 从配置行中为给定年份创建月份长度字符串数组
-     *
-     * @param year                  the year for which the month lengths are being created
-     *                              正在创建月份长度的年份
-     * @param monthLengthConfigLine the month length configuration line for the year
-     *                              年份对应的月份长度配置行
-     * @return month length string array
-     * 月份长度字符串数组
-     * @throws IllegalArgumentException if the month count and leap-month count
-     *                                  do not describe a common or leap year
-     *                                  如果月份数量与闰月数量不符合平年或闰年规则
-     */
-    private static String[] createMonthLengthStringArray(int year, String monthLengthConfigLine) {
-        String[] monthLengthStringArray = monthLengthConfigLine.strip().split("\\s+");
-        int leapMonthCount = 0;
-        for (String monthLength : monthLengthStringArray) {
-            if (monthLength.startsWith(LEAP_PREFIX)) {
-                leapMonthCount++;
-            }
-        }
-
-        ValueRange range = ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR.range();
-        int monthCount = monthLengthStringArray.length;
-        // A common year must contain 12 months and no leap month.
-        // 平年必须包含 12 个月，且不能有闰月。
-        boolean validCommonYear = monthCount == range.getSmallestMaximum() && leapMonthCount == 0;
-        // A leap year must contain 13 months and exactly one leap month.
-        // 闰年必须包含 13 个月，且只能有一个闰月。
-        boolean validLeapYear = monthCount == range.getMaximum() && leapMonthCount == 1;
-        // Reject configurations that match neither a common year nor a leap year.
-        // 拒绝既不符合平年规则也不符合闰年规则的配置。
-        if (!validCommonYear && !validLeapYear) {
-            throw new IllegalArgumentException("Invalid month length config year: " + year +
-                    ", line: " + monthLengthConfigLine);
-        }
-        return monthLengthStringArray;
-    }
-
-    /**
-     * Create an array of month start epoch days from the collection of month lengths for each year.
-     * 从每年的月份长度集合中创建月份开始的纪元天数数组
-     *
-     * @param daysOfMonthsCollection the collection of month lengths for each year
-     *                               每年的月份长度集合
-     * @param minimumEpochDay        the minimum epoch day
-     *                               最小的纪元天
-     * @param maximumMonthsInYear    the maximum number of months in a year
-     *                               每年的最大月份数
-     * @return MonthStartData containing the month start epoch days
-     * 包含月份开始的纪元天数的数据
-     * @throws IllegalArgumentException if a month length is negative
-     *                                  如果月份天数为负数
-     * @throws IllegalStateException if the month-start table is not filled exactly
-     *                               如果月初纪元天数表未被恰好填满
-     */
-    private static MonthStartData createMonthStartEpochDays(Collection<int[]> daysOfMonthsCollection,
-                                                            int minimumEpochDay, int maximumMonthsInYear) {
-        int[] monthStartEpochDays = new int[Math.addExact(
-                Math.multiplyExact(daysOfMonthsCollection.size(), maximumMonthsInYear), 1)];
-        int minimumDaysInMonth = Integer.MAX_VALUE;
-        int maximumDaysInMonth = Integer.MIN_VALUE;
-        int minimumDaysInYear = Integer.MAX_VALUE;
-        int maximumDaysInYear = Integer.MIN_VALUE;
-
-        int index = 0;
-        for (int[] daysOfMonths : daysOfMonthsCollection) {
-            int daysInYear = 0;
-            for (int dayOfMonth : daysOfMonths) {
-                if (dayOfMonth < 0) {
-                    throw new IllegalArgumentException("Invalid month length: " + dayOfMonth);
-                }
-                monthStartEpochDays[index++] = minimumEpochDay;
-                minimumEpochDay = Math.addExact(minimumEpochDay, dayOfMonth);
-                daysInYear += dayOfMonth;
-                minimumDaysInMonth = Math.min(minimumDaysInMonth, dayOfMonth);
-                maximumDaysInMonth = Math.max(maximumDaysInMonth, dayOfMonth);
-            }
-            minimumDaysInYear = Math.min(minimumDaysInYear, daysInYear);
-            maximumDaysInYear = Math.max(maximumDaysInYear, daysInYear);
-
-            for (int i = daysOfMonths.length; i < maximumMonthsInYear; i++) {
-                monthStartEpochDays[index++] = minimumEpochDay;
-            }
-        }
-
-        // Insert the final epochDay
-        monthStartEpochDays[index++] = minimumEpochDay;
-
-        if (index != monthStartEpochDays.length) {
-            throw new IllegalStateException("Did not fill epochMonths exactly: ndx = " + index
-                    + " should be " + monthStartEpochDays.length);
-        }
-
-        return new MonthStartData(monthStartEpochDays, minimumDaysInMonth,
-                maximumDaysInMonth, minimumDaysInYear, maximumDaysInYear);
+    private static ConfigData loadConfigData() throws IOException {
+        return ConfigLoader.load();
     }
 
     //-----------------------------------------------------------------------
@@ -1723,37 +1384,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
             monthStartEpochDays = monthStartEpochDays.clone();
             leapMonthByYear = Map.copyOf(leapMonthByYear);
         }
-    }
-
-    /**
-     * The parsed month lengths and leap-month number for one year.
-     * 某一年的月份天数和闰月编号。
-     *
-     * @param monthLengths the month lengths in sequence
-     *                     按顺序排列的月份天数
-     * @param leapMonth    the one-based month number of the leap month, or zero if none
-     *                     闰月对应的月份编号；没有闰月时为零
-     */
-    private record ParsedMonths(int[] monthLengths, int leapMonth) {
-    }
-
-    /**
-     * A record to hold the month start epoch days and related data.
-     * 用于保存月份开始的纪元天数和相关数据
-     *
-     * @param monthStartEpochDays the epoch day at the start of each month
-     *                            每个月开始时对应的纪元天数
-     * @param minimumDaysInMonth  the minimum number of days in a month
-     *                            月份的最少天数
-     * @param maximumDaysInMonth  the maximum number of days in a month
-     *                            月份的最多天数
-     * @param minimumDaysInYear   the minimum number of days in a year
-     *                            年份的最少天数
-     * @param maximumDaysInYear   the maximum number of days in a year
-     *                            年份的最多天数
-     */
-    private record MonthStartData(int[] monthStartEpochDays, int minimumDaysInMonth, int maximumDaysInMonth,
-                                  int minimumDaysInYear, int maximumDaysInYear) {
     }
 
     //-----------------------------------------------------------------------
