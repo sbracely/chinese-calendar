@@ -1,5 +1,6 @@
-package io.github.sbracely.chinese.calendar;
+package io.github.sbracely.chinese.calendar.internal;
 
+import io.github.sbracely.chinese.calendar.ChineseTemporalField;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -20,7 +21,7 @@ import java.security.NoSuchAlgorithmException;
  * Parses and validates Chinese calendar configuration properties.
  * 解析并校验农历配置属性。
  */
-final class ChineseCalendarDataParser {
+public final class ChineseCalendarDataParser {
 
     private static final String KEY_ID = "id";
     private static final String KEY_TYPE = "type";
@@ -32,13 +33,13 @@ final class ChineseCalendarDataParser {
     private ChineseCalendarDataParser() {
     }
 
-    static Result parse(Properties properties) {
+    public static Result parse(Properties properties, String expectedId, String expectedType) {
         String id = properties.getProperty(KEY_ID);
-        if (!ChineseChronology.ID.equals(id)) {
+        if (!expectedId.equals(id)) {
             throw new IllegalArgumentException("Configuration is for a different calendar: " + id);
         }
         String type = properties.getProperty(KEY_TYPE);
-        if (!ChineseChronology.CALENDAR_TYPE.equals(type)) {
+        if (!expectedType.equals(type)) {
             throw new IllegalArgumentException("Configuration is for a different calendar type: " + type);
         }
         String version = properties.getProperty(KEY_VERSION);
@@ -190,12 +191,12 @@ final class ChineseCalendarDataParser {
         }
     }
 
-    record Result(int[] monthStartEpochDays, int minimumEpochDay, int maximumEpochDay,
-                  int epochMonthOffset, int minimumDaysInMonth, int maximumDaysInMonth,
-                  int maximumMonthsInYear, int minimumDaysInYear, int maximumDaysInYear,
-                  Map<Integer, Integer> leapMonthByYear, int minimumYear, int maximumYear,
-                  String fingerprint) {
-        Result {
+    public record Result(int[] monthStartEpochDays, int minimumEpochDay, int maximumEpochDay,
+                         int epochMonthOffset, int minimumDaysInMonth, int maximumDaysInMonth,
+                         int maximumMonthsInYear, int minimumDaysInYear, int maximumDaysInYear,
+                         Map<Integer, Integer> leapMonthByYear, int minimumYear, int maximumYear,
+                         String fingerprint) {
+        public Result {
             monthStartEpochDays = monthStartEpochDays.clone();
             leapMonthByYear = Map.copyOf(leapMonthByYear);
         }

@@ -1,8 +1,9 @@
 package io.github.sbracely.chinese.calendar;
 
-import io.github.sbracely.chinese.calendar.spi.ConfigLoader;
 import io.github.sbracely.chinese.calendar.spi.ConfigData;
 import io.github.sbracely.chinese.calendar.spi.ConfigSource;
+import io.github.sbracely.chinese.calendar.internal.ChineseCalendarDataParser;
+import io.github.sbracely.chinese.calendar.internal.ConfigLoader;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -898,7 +899,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         try {
             ConfigData configData = loadConfigData();
             configSource = configData.description();
-            ChineseCalendarDataParser.Result parsed = ChineseCalendarDataParser.parse(configData.properties());
+            ChineseCalendarDataParser.Result parsed = ChineseCalendarDataParser.parse(
+                    configData.properties(), ID, CALENDAR_TYPE);
             return new CalendarData(parsed.monthStartEpochDays(), parsed.minimumEpochDay(), parsed.maximumEpochDay(),
                     parsed.epochMonthOffset(), parsed.minimumDaysInMonth(), parsed.maximumDaysInMonth(),
                     parsed.maximumMonthsInYear(), parsed.minimumDaysInYear(), parsed.maximumDaysInYear(),

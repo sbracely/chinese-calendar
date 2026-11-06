@@ -1,4 +1,7 @@
-package io.github.sbracely.chinese.calendar.spi;
+package io.github.sbracely.chinese.calendar.internal;
+
+import io.github.sbracely.chinese.calendar.spi.ConfigData;
+import io.github.sbracely.chinese.calendar.spi.ConfigSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
