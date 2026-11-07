@@ -25,7 +25,6 @@ public final class ChineseCalendarDataParser {
 
     private static final String KEY_ID = "id";
     private static final String KEY_TYPE = "type";
-    private static final String KEY_VERSION = "version";
     private static final String KEY_ISO_START = "iso-start";
     private static final String KEY_MONTH_LENGTH_PREFIX = "month-length.";
     private static final String LEAP_PREFIX = "leap";
@@ -42,11 +41,6 @@ public final class ChineseCalendarDataParser {
         if (!expectedType.equals(type)) {
             throw new IllegalArgumentException("Configuration is for a different calendar type: " + type);
         }
-        String version = properties.getProperty(KEY_VERSION);
-        if (version == null || version.isBlank()) {
-            throw new IllegalArgumentException("Configuration does not contain a version");
-        }
-
         String isoStartValue = properties.getProperty(KEY_ISO_START);
         if (isoStartValue == null || isoStartValue.isEmpty()) {
             throw new IllegalArgumentException("Configuration does not contain a ISO start date");

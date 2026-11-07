@@ -307,7 +307,7 @@ class ChineseChronologyCustomDataTest {
                 assertThatThrownBy(() -> ChineseCalendarConfigLoader.configure(new Properties()))
                         .isInstanceOf(IllegalStateException.class);
                 if (config != null && !config.isBlank()) {
-                    Files.writeString(Path.of(config), "version=1");
+                    Files.writeString(Path.of(config), "");
                 }
                 assertThat(catchThrowable(() -> new ChineseChronology().date(2023, 1, 1))).isSameAs(failure);
             }
