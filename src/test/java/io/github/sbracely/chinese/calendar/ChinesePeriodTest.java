@@ -6,6 +6,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.InvalidObjectException;
+import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -22,6 +24,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChinesePeriodTest {
     private static final ChineseChronology CHRONOLOGY = ChineseChronology.INSTANCE;
+
+    @Test
+    void createsPeriodsWithoutAChronologyArgument() {
+        ChinesePeriod period = new ChinesePeriod(1, 2, 3);
+        ChinesePeriod fromAnotherInstance = new ChineseChronology().period(1, 2, 3);
+
+        assertThat(period.getChronology()).isSameAs(CHRONOLOGY);
+        assertThat(fromAnotherInstance.getChronology()).isSameAs(CHRONOLOGY);
+        assertThat(fromAnotherInstance).isEqualTo(period);
+        assertThat(fromAnotherInstance.hashCode()).isEqualTo(period.hashCode());
+    }
 
     @Test
     void exposesComponentsAndValueSemantics() {
@@ -69,8 +82,6 @@ class ChinesePeriodTest {
         ChinesePeriod year = CHRONOLOGY.period(1, 0, 0);
         assertThat(year.subtractFrom(year.addTo(endOfYear)))
                 .isNotEqualTo(endOfYear);
-        assertThatThrownBy(() -> new ChinesePeriod(null, 0, 0, 0))
-                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -88,6 +99,34 @@ class ChinesePeriodTest {
 
         assertThat(deserialized).isEqualTo(period);
         assertThat(deserialized.getChronology()).isSameAs(CHRONOLOGY);
+    }
+
+    @Test
+    void rejectsSerializedPeriodWithMismatchedCalendarData() throws Exception {
+        Class<?> proxyType = Class.forName(ChineseChronology.class.getName() + "$Ser");
+        java.lang.reflect.Constructor<?> constructor = proxyType.getDeclaredConstructor(
+                String.class, String.class, String.class);
+        constructor.setAccessible(true);
+        Object invalidChronology = constructor.newInstance("Chinese", "chinese", "invalid");
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream output = new ObjectOutputStream(bytes) {
+            {
+                enableReplaceObject(true);
+            }
+
+            @Override
+            protected Object replaceObject(Object object) throws IOException {
+                return proxyType.isInstance(object) ? invalidChronology : object;
+            }
+        }) {
+            output.writeObject(new ChinesePeriod(1, 2, 3));
+        }
+
+        try (ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+            assertThatThrownBy(input::readObject)
+                    .isInstanceOf(InvalidObjectException.class)
+                    .hasMessageContaining("fingerprint mismatch");
+        }
     }
 
     @Test

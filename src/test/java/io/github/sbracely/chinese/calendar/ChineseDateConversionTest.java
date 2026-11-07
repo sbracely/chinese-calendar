@@ -30,6 +30,18 @@ class ChineseDateConversionTest {
     private static final ChineseChronology CHRONOLOGY = ChineseChronology.INSTANCE;
     private static final String CALENDAR_DATA_RESOURCE = "calendar-data.csv";
 
+    @Test
+    void usesSharedChronologyForDatesCreatedByAnotherInstance() {
+        ChineseDate date = new ChineseChronology().date(2023, 2, true, 1);
+        ChineseDate expected = CHRONOLOGY.date(2023, 2, true, 1);
+
+        assertThat(date.getChronology()).isSameAs(CHRONOLOGY);
+        assertThat(date.query(TemporalQueries.chronology())).isSameAs(CHRONOLOGY);
+        assertThat(date).isEqualTo(expected);
+        assertThat(date.hashCode()).isEqualTo(expected.hashCode());
+        assertThat(date.plusMonths(1)).isEqualTo(expected.plusMonths(1));
+    }
+
     @ParameterizedTest
     @MethodSource("calendarDates")
     void convertsGregorianTemporalsUsingFrom(int year, int month, boolean leapMonth, int day,

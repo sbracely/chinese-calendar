@@ -154,7 +154,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *                           如果日期无效、闰月不存在或年份超出支持范围
      */
     public ChineseDate date(int prolepticYear, int month, boolean leapMonth, int dayOfMonth) {
-        return ChineseDate.of(this, prolepticYear, month, leapMonth, dayOfMonth);
+        return ChineseDate.of(prolepticYear, month, leapMonth, dayOfMonth);
     }
 
     /**
@@ -370,7 +370,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     @Override
     public ChineseDate date(int prolepticYear, int month, int dayOfMonth) {
-        return ChineseDate.of(this, prolepticYear, month, dayOfMonth);
+        return ChineseDate.of(prolepticYear, month, dayOfMonth);
     }
 
     /**
@@ -411,7 +411,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     @Override
     public ChineseDate dateYearDay(int prolepticYear, int dayOfYear) {
-        ChineseDate date = ChineseDate.of(this, prolepticYear, 1, 1);
+        ChineseDate date = ChineseDate.of(prolepticYear, 1, 1);
         if (dayOfYear < 1 || dayOfYear > date.lengthOfYear()) {
             throw new DateTimeException("Invalid day of year: " + dayOfYear);
         }
@@ -431,7 +431,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     @Override
     public ChineseDate dateEpochDay(long epochDay) {
-        return ChineseDate.ofEpochDay(this, epochDay);
+        return ChineseDate.ofEpochDay(epochDay);
     }
 
     /**
@@ -698,7 +698,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     @Override
     public ChinesePeriod period(int years, int months, int days) {
-        return new ChinesePeriod(this, years, months, days);
+        return new ChinesePeriod(years, months, days);
     }
 
     //-----------------------------------------------------------------------
@@ -933,11 +933,11 @@ public final class ChineseChronology extends AbstractChronology implements Seria
             throw new DateTimeException("Date is out of range for Chinese calendar: " + epochDay);
         }
 
-        int epochMonth = epochDayToEpochMonth(data, epochDay);
+        int epochMonth = data.epochMonthForDay(epochDay);
         int year = epochMonthToYear(data, epochMonth);
         int month = epochMonthToMonth(data, epochMonth, year);
         boolean leapMonth = isLeapEpochMonth(data, epochMonth, year);
-        int day = epochMonthToEpochDay(data, epochMonth);
+        int day = data.monthStartEpochDayAt(epochMonth);
         int date = epochDay - day;
 
         int[] dateInfo = new int[4];
@@ -979,7 +979,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         if (dayOfMonth < 1 || dayOfMonth > epochMonthLength(data, epochMonth)) {
             throw new DateTimeException("Invalid Chinese day of month: " + dayOfMonth);
         }
-        return epochMonthToEpochDay(data, epochMonth) + (dayOfMonth - 1);
+        return data.monthStartEpochDayAt(epochMonth) + (dayOfMonth - 1);
     }
 
     /**
@@ -1020,8 +1020,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     int getYearLength(int prolepticYear) {
         ChineseCalendarData data = calendarData();
-        return epochMonthToEpochDay(data, yearToEpochMonth(data, prolepticYear + 1))
-                - epochMonthToEpochDay(data, yearToEpochMonth(data, prolepticYear));
+        return data.monthStartEpochDayAt(yearToEpochMonth(data, prolepticYear + 1))
+                - data.monthStartEpochDayAt(yearToEpochMonth(data, prolepticYear));
     }
 
     /**
@@ -1092,7 +1092,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         checkValidYear(year);
         checkValidMonth(month);
         int day = Math.min(start.get(ChronoField.DAY_OF_MONTH), epochMonthLength(data, epochMonth));
-        return epochMonthToEpochDay(data, epochMonth) + day - 1;
+        return data.monthStartEpochDayAt(epochMonth) + day - 1;
     }
 
     //-----------------------------------------------------------------------
@@ -1111,21 +1111,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     private void checkValidMonth(int month) {
         range(ChronoField.MONTH_OF_YEAR).checkValidValue(month, ChronoField.MONTH_OF_YEAR);
-    }
-
-    /**
-     * Finds the epoch-month index containing the specified epoch day.
-     * 查找包含指定纪元天数的纪元月份索引。
-     *
-     * @param data     the calendar data
-     *                 历法数据
-     * @param epochDay the epoch day to locate
-     *                 要定位的纪元天数
-     * @return the index of the containing epoch month
-     *         所属纪元月份的索引
-     */
-    private int epochDayToEpochMonth(ChineseCalendarData data, int epochDay) {
-        return data.epochMonthForDay(epochDay);
     }
 
     /**
@@ -1178,21 +1163,6 @@ public final class ChineseChronology extends AbstractChronology implements Seria
             return leapMonth;
         }
         return monthIndex + 1 - (leapMonth != 0 && monthIndex > leapMonth ? 1 : 0);
-    }
-
-    /**
-     * Gets the epoch day at the start of an epoch month.
-     * 获取纪元月份开始时对应的纪元天数。
-     *
-     * @param data       the calendar data
-     *                   历法数据
-     * @param epochMonth the epoch-month index
-     *                   纪元月份索引
-     * @return the epoch day at the start of the month
-     *         月初对应的纪元天数
-     */
-    private int epochMonthToEpochDay(ChineseCalendarData data, int epochMonth) {
-        return data.monthStartEpochDayAt(epochMonth);
     }
 
     /**

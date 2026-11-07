@@ -19,6 +19,8 @@ import static java.time.temporal.ChronoField.*;
 /**
  * An immutable date in the Chinese calendar, including its leap-month flag.
  * 包含闰月标志的不可变农历日期。
+ * All dates use {@link ChineseChronology#INSTANCE} as their chronology.
+ * 所有日期均使用 {@link ChineseChronology#INSTANCE} 作为其历法。
  */
 public final class ChineseDate implements ChronoLocalDate, Serializable {
 
@@ -33,12 +35,6 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     // Instance fields
     // 实例字段
     //-----------------------------------------------------------------------
-
-    /**
-     * The chronology defining this date.
-     * 定义此日期的历法。
-     */
-    private final transient ChineseChronology chronology;
 
     /**
      * The proleptic year.
@@ -72,9 +68,9 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     /**
      * Creates a date after validating its fields.
      * 校验日期字段后创建日期。
+     * Validation uses the shared Chinese chronology.
+     * 使用共享农历历法进行校验。
      *
-     * @param chronology the chronology to use
-     *                   使用的历法
      * @param prolepticYear the proleptic year
      *                      历法年份
      * @param monthOfYear the month number
@@ -85,13 +81,10 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *                   月中的日期
      * @throws DateTimeException if the date or leap-month flag is invalid or outside the supported range
      *                           如果日期或闰月标志无效，或超出支持范围
-     * @throws NullPointerException if the chronology is {@code null}
-     *                              如果历法为 {@code null}
      */
-    private ChineseDate(ChineseChronology chronology, int prolepticYear, int monthOfYear, boolean leapMonth, int dayOfMonth) {
-        chronology.getEpochDay(prolepticYear, monthOfYear, leapMonth, dayOfMonth);
+    private ChineseDate(int prolepticYear, int monthOfYear, boolean leapMonth, int dayOfMonth) {
+        ChineseChronology.INSTANCE.getEpochDay(prolepticYear, monthOfYear, leapMonth, dayOfMonth);
 
-        this.chronology = chronology;
         this.prolepticYear = prolepticYear;
         this.monthOfYear = monthOfYear;
         this.leapMonth = leapMonth;
@@ -101,22 +94,19 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     /**
      * Creates a date from an epoch day.
      * 根据纪元天数创建日期。
+     * Conversion uses the shared Chinese chronology.
+     * 使用共享农历历法进行转换。
      *
-     * @param chronology the chronology to use
-     *                   使用的历法
      * @param epochDay the number of days since 1970-01-01 (ISO)
      *                 自 ISO 日期 1970-01-01 起的天数
      * @throws DateTimeException if the epoch day is outside the supported range
      *                           如果纪元天数超出支持范围
-     * @throws NullPointerException if the chronology is {@code null}
-     *                              如果历法为 {@code null}
      */
-    private ChineseDate(ChineseChronology chronology, long epochDay) {
+    private ChineseDate(long epochDay) {
         if (epochDay < Integer.MIN_VALUE || epochDay > Integer.MAX_VALUE) {
             throw new DateTimeException("Date is out of range for Chinese calendar: " + epochDay);
         }
-        int[] chineseDateInfo = chronology.getChineseDateInfo((int) epochDay);
-        this.chronology = chronology;
+        int[] chineseDateInfo = ChineseChronology.INSTANCE.getChineseDateInfo((int) epochDay);
         this.prolepticYear = chineseDateInfo[0];
         this.monthOfYear = chineseDateInfo[1];
         this.dayOfMonth = chineseDateInfo[2];
@@ -155,7 +145,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *                           如果当前日期超出支持范围
      */
     public static ChineseDate now(Clock clock) {
-        return ChineseDate.ofEpochDay(ChineseChronology.INSTANCE, LocalDate.now(clock).toEpochDay());
+        return ChineseDate.ofEpochDay(LocalDate.now(clock).toEpochDay());
     }
 
     /**
@@ -186,8 +176,6 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      * Creates a date in a regular month.
      * 创建普通月中的日期。
      *
-     * @param chrono the chronology to use
-     *               使用的历法
      * @param prolepticYear the proleptic year
      *                      历法年份
      * @param monthOfYear the month number
@@ -198,19 +186,15 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *         农历日期
      * @throws DateTimeException if the date is invalid or outside the supported range
      *                           如果日期无效或超出支持范围
-     * @throws NullPointerException if the chronology is {@code null}
-     *                              如果历法为 {@code null}
      */
-    static ChineseDate of(ChineseChronology chrono, int prolepticYear, int monthOfYear, int dayOfMonth) {
-        return of(chrono, prolepticYear, monthOfYear, false, dayOfMonth);
+    static ChineseDate of(int prolepticYear, int monthOfYear, int dayOfMonth) {
+        return of(prolepticYear, monthOfYear, false, dayOfMonth);
     }
 
     /**
      * Creates a date with an explicit leap-month flag.
      * 使用明确的闰月标志创建日期。
      *
-     * @param chrono the chronology to use
-     *               使用的历法
      * @param prolepticYear the proleptic year
      *                      历法年份
      * @param monthOfYear the month number
@@ -223,30 +207,24 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *         农历日期
      * @throws DateTimeException if the date or leap-month flag is invalid or outside the supported range
      *                           如果日期或闰月标志无效，或超出支持范围
-     * @throws NullPointerException if the chronology is {@code null}
-     *                              如果历法为 {@code null}
      */
-    static ChineseDate of(ChineseChronology chrono, int prolepticYear, int monthOfYear, boolean leapMonth, int dayOfMonth) {
-        return new ChineseDate(chrono, prolepticYear, monthOfYear, leapMonth, dayOfMonth);
+    static ChineseDate of(int prolepticYear, int monthOfYear, boolean leapMonth, int dayOfMonth) {
+        return new ChineseDate(prolepticYear, monthOfYear, leapMonth, dayOfMonth);
     }
 
     /**
      * Creates a date from an epoch day.
      * 根据纪元天数创建日期。
      *
-     * @param chronology the chronology to use
-     *                   使用的历法
      * @param epochDay the number of days since 1970-01-01 (ISO)
      *                 自 ISO 日期 1970-01-01 起的天数
      * @return the Chinese date
      *         农历日期
      * @throws DateTimeException if the epoch day is outside the supported range
      *                           如果纪元天数超出支持范围
-     * @throws NullPointerException if the chronology is {@code null}
-     *                              如果历法为 {@code null}
      */
-    static ChineseDate ofEpochDay(ChineseChronology chronology, long epochDay) {
-        return new ChineseDate(chronology, epochDay);
+    static ChineseDate ofEpochDay(long epochDay) {
+        return new ChineseDate(epochDay);
     }
 
     //-----------------------------------------------------------------------
@@ -255,15 +233,15 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     //-----------------------------------------------------------------------
 
     /**
-     * Gets the chronology defining this date.
-     * 获取定义此日期的历法。
+     * Gets the shared Chinese chronology singleton.
+     * 获取共享的农历历法单例。
      *
-     * @return the chronology
-     *         历法
+     * @return the shared chronology singleton
+     *         共享的历法单例
      */
     @Override
     public ChineseChronology getChronology() {
-        return chronology;
+        return ChineseChronology.INSTANCE;
     }
 
     /**
@@ -275,7 +253,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      */
     @Override
     public int lengthOfMonth() {
-        return chronology.getMonthLength(prolepticYear, monthOfYear, leapMonth);
+        return getChronology().getMonthLength(prolepticYear, monthOfYear, leapMonth);
     }
 
     /**
@@ -319,7 +297,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *         从一开始计数的年内日序
      */
     public int getDayOfYear() {
-        long yearStart = chronology.getEpochDay(prolepticYear, 1, false, 1);
+        long yearStart = getChronology().getEpochDay(prolepticYear, 1, false, 1);
         return Math.toIntExact(toEpochDay() - yearStart + 1);
     }
 
@@ -344,7 +322,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      */
     @Override
     public int lengthOfYear() {
-        return chronology.getYearLength(prolepticYear);
+        return getChronology().getYearLength(prolepticYear);
     }
 
     /**
@@ -356,7 +334,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      */
     @Override
     public long toEpochDay() {
-        return chronology.getEpochDay(prolepticYear, monthOfYear, leapMonth, dayOfMonth);
+        return getChronology().getEpochDay(prolepticYear, monthOfYear, leapMonth, dayOfMonth);
     }
 
     //-----------------------------------------------------------------------
@@ -407,14 +385,14 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
             if (!isSupported(chronoField)) {
                 throw new UnsupportedTemporalTypeException("Unsupported field: " + field);
             }
-            chronology.range(chronoField).checkValidValue(newValue, chronoField);
+            getChronology().range(chronoField).checkValidValue(newValue, chronoField);
             return switch (chronoField) {
                 case DAY_OF_WEEK -> plusDays(newValue - getDayOfWeek().getValue());
                 case ALIGNED_DAY_OF_WEEK_IN_MONTH -> plusDays(newValue - getLong(ALIGNED_DAY_OF_WEEK_IN_MONTH));
                 case ALIGNED_DAY_OF_WEEK_IN_YEAR -> plusDays(newValue - getLong(ALIGNED_DAY_OF_WEEK_IN_YEAR));
                 case DAY_OF_MONTH -> resolvePreviousValid(prolepticYear, monthOfYear, leapMonth, (int) newValue);
                 case DAY_OF_YEAR -> plusDays(Math.min(newValue, lengthOfYear()) - getDayOfYear());
-                case EPOCH_DAY -> ChineseDate.ofEpochDay(chronology, newValue);
+                case EPOCH_DAY -> ChineseDate.ofEpochDay(newValue);
                 case ALIGNED_WEEK_OF_MONTH -> plusDays((newValue - getLong(ALIGNED_WEEK_OF_MONTH)) * 7);
                 case ALIGNED_WEEK_OF_YEAR -> plusDays((newValue - getLong(ALIGNED_WEEK_OF_YEAR)) * 7);
                 case MONTH_OF_YEAR -> resolvePreviousValid(prolepticYear, (int) newValue, leapMonth, dayOfMonth);
@@ -426,15 +404,15 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
             chineseTemporalField.rangeRefinedBy(this).checkValidValue(newValue, chineseTemporalField);
             return switch (chineseTemporalField) {
                 case IS_LEAP_MONTH -> {
-                    if (newValue == 1 && chronology.getLeapMonth(prolepticYear) != monthOfYear) {
+                    if (newValue == 1 && getChronology().getLeapMonth(prolepticYear) != monthOfYear) {
                         throw new DateTimeException("Invalid leap month: " + monthOfYear + " in year " + prolepticYear);
                     }
                     yield resolvePreviousValid(prolepticYear, monthOfYear, newValue == 1, dayOfMonth);
                 }
                 case MONTH_AS_ORDINAL_OF_YEAR -> {
-                    int leapMonth = chronology.getLeapMonth(prolepticYear);
+                    int leapMonth = getChronology().getLeapMonth(prolepticYear);
                     boolean isLeapMonth = false;
-                    if (chronology.isLeapYear(prolepticYear)) {
+                    if (getChronology().isLeapYear(prolepticYear)) {
                         if (newValue == leapMonth + 1) {
                             isLeapMonth = true;
                         }
@@ -569,7 +547,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
             return this;
         }
         long targetYear = Math.addExact(prolepticYear, years);
-        chronology.checkValidYear(targetYear);
+        getChronology().checkValidYear(targetYear);
         int year = Math.toIntExact(targetYear);
         return resolvePreviousValid(year, monthOfYear, leapMonth, dayOfMonth);
     }
@@ -588,7 +566,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *                             如果发生数值溢出
      */
     public ChineseDate plusMonths(long months) {
-        return months == 0 ? this : ofEpochDay(chronology, chronology.epochDayAfterMonths(this, months));
+        return months == 0 ? this : ofEpochDay(getChronology().epochDayAfterMonths(this, months));
     }
 
     /**
@@ -605,7 +583,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *                             如果发生数值溢出
      */
     public ChineseDate plusDays(long days) {
-        return days == 0 ? this : ofEpochDay(chronology, Math.addExact(toEpochDay(), days));
+        return days == 0 ? this : ofEpochDay(Math.addExact(toEpochDay(), days));
     }
 
     //-----------------------------------------------------------------------
@@ -636,7 +614,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                 case DAY_OF_MONTH -> ValueRange.of(1, lengthOfMonth());
                 case DAY_OF_YEAR -> ValueRange.of(1, lengthOfYear());
                 case ALIGNED_WEEK_OF_YEAR -> ValueRange.of(1, (lengthOfYear() + 6) / 7);
-                default -> chronology.range(chronoField);
+                default -> getChronology().range(chronoField);
             };
         }
         return field.rangeRefinedBy(this);
@@ -730,8 +708,8 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                 case IS_LEAP_MONTH -> isLeapMonth() ? 1 : 0;
                 case MONTH_AS_ORDINAL_OF_YEAR -> {
                     int month = monthOfYear;
-                    if (chronology.isLeapYear(prolepticYear)) {
-                        int leapMonth = chronology.getLeapMonth(prolepticYear);
+                    if (getChronology().isLeapYear(prolepticYear)) {
+                        int leapMonth = getChronology().getLeapMonth(prolepticYear);
                         if (month > leapMonth || isLeapMonth()) {
                             month++;
                         }
@@ -767,13 +745,13 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      */
     @Override
     public long until(Temporal endExclusive, TemporalUnit unit) {
-        ChineseDate end = chronology.date(endExclusive);
+        ChineseDate end = getChronology().date(endExclusive);
         long days = end.toEpochDay() - toEpochDay();
         if (unit instanceof ChronoUnit chronoUnit) {
             return switch (chronoUnit) {
                 case DAYS -> days;
                 case WEEKS -> days / 7;
-                case MONTHS -> chronology.monthsBetween(this, end);
+                case MONTHS -> getChronology().monthsBetween(this, end);
                 case YEARS -> yearsUntil(end);
                 case DECADES -> yearsUntil(end) / 10;
                 case CENTURIES -> yearsUntil(end) / 100;
@@ -800,12 +778,12 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      */
     @Override
     public ChronoPeriod until(ChronoLocalDate endDateExclusive) {
-        ChineseDate end = chronology.date(endDateExclusive);
+        ChineseDate end = getChronology().date(endDateExclusive);
         long years = yearsUntil(end);
         ChineseDate afterYears = plusYears(years);
-        long months = chronology.monthsBetween(afterYears, end);
+        long months = getChronology().monthsBetween(afterYears, end);
         long monthDays = end.toEpochDay() - afterYears.plusMonths(months).toEpochDay();
-        return chronology.period(Math.toIntExact(years), Math.toIntExact(months), Math.toIntExact(monthDays));
+        return getChronology().period(Math.toIntExact(years), Math.toIntExact(months), Math.toIntExact(monthDays));
     }
 
     //-----------------------------------------------------------------------
@@ -814,8 +792,8 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     //-----------------------------------------------------------------------
 
     /**
-     * Compares the chronology and all date fields, including the leap-month flag.
-     * 比较历法及所有日期字段，包括闰月标志。
+     * Compares all date fields, including the leap-month flag.
+     * 比较所有日期字段，包括闰月标志。
      *
      * @param obj the object to compare, or {@code null}
      *            要比较的对象，可以为 {@code null}
@@ -830,20 +808,21 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
         if (!(obj instanceof ChineseDate other)) {
             return false;
         }
-        return prolepticYear == other.prolepticYear && monthOfYear == other.monthOfYear && leapMonth == other.leapMonth && dayOfMonth == other.dayOfMonth && chronology.equals(other.chronology);
+        return prolepticYear == other.prolepticYear && monthOfYear == other.monthOfYear
+                && leapMonth == other.leapMonth && dayOfMonth == other.dayOfMonth;
     }
 
 
     /**
-     * Gets a hash code from the chronology and all date fields.
-     * 根据历法及所有日期字段计算哈希值。
+     * Gets a hash code from the shared chronology and all date fields.
+     * 根据共享历法及所有日期字段计算哈希值。
      *
      * @return the hash code
      *         哈希值
      */
     @Override
     public int hashCode() {
-        return Objects.hash(chronology, prolepticYear, monthOfYear, leapMonth, dayOfMonth);
+        return Objects.hash(getChronology(), prolepticYear, monthOfYear, leapMonth, dayOfMonth);
     }
 
     /**
@@ -884,9 +863,9 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *                           如果调整后的日期无效或超出支持范围
      */
     private ChineseDate resolvePreviousValid(int prolepticYear, int month, boolean leapMonth, int day) {
-        leapMonth = leapMonth && chronology.getLeapMonth(prolepticYear) == month;
-        int monthLength = chronology.getMonthLength(prolepticYear, month, leapMonth);
-        return ChineseDate.of(chronology, prolepticYear, month, leapMonth, Math.min(day, monthLength));
+        leapMonth = leapMonth && getChronology().getLeapMonth(prolepticYear) == month;
+        int monthLength = getChronology().getMonthLength(prolepticYear, month, leapMonth);
+        return ChineseDate.of(prolepticYear, month, leapMonth, Math.min(day, monthLength));
     }
 
     /**
@@ -925,7 +904,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      */
     @Serial
     private Object writeReplace() {
-        return new Ser(chronology, prolepticYear, monthOfYear, leapMonth, dayOfMonth);
+        return new Ser(getChronology(), prolepticYear, monthOfYear, leapMonth, dayOfMonth);
     }
 
     /**
@@ -945,6 +924,8 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     /**
      * Serialization proxy preserving the Chinese date fields and chronology.
      * 保存农历日期字段及历法的序列化代理。
+     * The chronology proxy verifies the shared calendar data fingerprint during deserialization.
+     * 历法代理在反序列化时校验共享历法数据的指纹。
      *
      * @param chronology the chronology to restore
      *                   要恢复的历法
@@ -971,7 +952,8 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
         @Serial
         private Object readResolve() throws ObjectStreamException {
             try {
-                return ChineseDate.of(chronology, prolepticYear, monthOfYear, leapMonth, dayOfMonth);
+                Objects.requireNonNull(chronology, "chronology");
+                return ChineseDate.of(prolepticYear, monthOfYear, leapMonth, dayOfMonth);
             } catch (DateTimeException | NullPointerException ex) {
                 throw new InvalidObjectException("Invalid Chinese date", ex);
             }

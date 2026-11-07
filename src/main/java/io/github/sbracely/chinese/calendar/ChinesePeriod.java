@@ -1,6 +1,9 @@
 package io.github.sbracely.chinese.calendar;
 
 import java.io.Serializable;
+import java.io.Serial;
+import java.io.InvalidObjectException;
+import java.io.ObjectStreamException;
 import java.time.DateTimeException;
 import java.time.chrono.ChronoPeriod;
 import java.time.chrono.Chronology;
@@ -18,8 +21,9 @@ import static java.time.temporal.ChronoUnit.*;
  * changing years may fall back to a regular month and clip the day.
  * 分量按年、月、日的顺序应用；闰月单独计数，调整年份可能回退到普通月并截取有效日数。
  *
- * @param chronology the non-null Chinese chronology
- *                   不为 null 的农历历法
+ * All periods use {@link ChineseChronology#INSTANCE} as their chronology.
+ * 所有期间均使用 {@link ChineseChronology#INSTANCE} 作为其历法。
+ *
  * @param years the signed year component
  *              带符号的年分量
  * @param months the signed month component
@@ -27,7 +31,7 @@ import static java.time.temporal.ChronoUnit.*;
  * @param days the signed day component
  *             带符号的日分量
  */
-public record ChinesePeriod(ChineseChronology chronology, int years, int months, int days)
+public record ChinesePeriod(int years, int months, int days)
         implements ChronoPeriod, Serializable {
 
     /**
@@ -35,25 +39,6 @@ public record ChinesePeriod(ChineseChronology chronology, int years, int months,
      * 按应用顺序排列的支持单位。
      */
     private static final List<TemporalUnit> UNITS = List.of(YEARS, MONTHS, DAYS);
-
-    /**
-     * Validates the chronology, leaving the signed components unnormalized.
-     * 校验历法，保留未归一化的带符号分量。
-     *
-     * @param chronology the non-null Chinese chronology
-     *                   不为 null 的农历历法
-     * @param years the signed year component
-     *              带符号的年分量
-     * @param months the signed month component
-     *               带符号的月分量
-     * @param days the signed day component
-     *             带符号的日分量
-     * @throws NullPointerException if the chronology is {@code null}
-     *                              如果历法为 {@code null}
-     */
-    public ChinesePeriod {
-        Objects.requireNonNull(chronology, "chronology");
-    }
 
     //-----------------------------------------------------------------------
     // Override methods from ChronoPeriod
@@ -97,15 +82,15 @@ public record ChinesePeriod(ChineseChronology chronology, int years, int months,
     }
 
     /**
-     * Gets the chronology of this period.
-     * 获取此期间所属的历法。
+     * Gets the shared Chinese chronology singleton.
+     * 获取共享的农历历法单例。
      *
      * @return the Chinese chronology
      *         农历历法
      */
     @Override
     public ChineseChronology getChronology() {
-        return chronology;
+        return ChineseChronology.INSTANCE;
     }
 
     /**
@@ -126,7 +111,7 @@ public record ChinesePeriod(ChineseChronology chronology, int years, int months,
     @Override
     public ChinesePeriod plus(TemporalAmount amount) {
         ChronoPeriod other = validateAmount(amount);
-        return new ChinesePeriod(chronology,
+        return new ChinesePeriod(
                 Math.addExact(years, Math.toIntExact(other.get(YEARS))),
                 Math.addExact(months, Math.toIntExact(other.get(MONTHS))),
                 Math.addExact(days, Math.toIntExact(other.get(DAYS))));
@@ -150,7 +135,7 @@ public record ChinesePeriod(ChineseChronology chronology, int years, int months,
     @Override
     public ChinesePeriod minus(TemporalAmount amount) {
         ChronoPeriod other = validateAmount(amount);
-        return new ChinesePeriod(chronology,
+        return new ChinesePeriod(
                 Math.subtractExact(years, Math.toIntExact(other.get(YEARS))),
                 Math.subtractExact(months, Math.toIntExact(other.get(MONTHS))),
                 Math.subtractExact(days, Math.toIntExact(other.get(DAYS))));
@@ -169,7 +154,7 @@ public record ChinesePeriod(ChineseChronology chronology, int years, int months,
      */
     @Override
     public ChinesePeriod multipliedBy(int scalar) {
-        return new ChinesePeriod(chronology, Math.multiplyExact(years, scalar),
+        return new ChinesePeriod(Math.multiplyExact(years, scalar),
                 Math.multiplyExact(months, scalar), Math.multiplyExact(days, scalar));
     }
 
@@ -271,7 +256,7 @@ public record ChinesePeriod(ChineseChronology chronology, int years, int months,
      */
     @Override
     public String toString() {
-        StringBuilder result = new StringBuilder(chronology.getId()).append(" P");
+        StringBuilder result = new StringBuilder(getChronology().getId()).append(" P");
         if (isZero()) {
             return result.append("0D").toString();
         }
@@ -310,8 +295,8 @@ public record ChinesePeriod(ChineseChronology chronology, int years, int months,
         if (!(amount instanceof ChronoPeriod period)) {
             throw new DateTimeException("Amount must be a ChronoPeriod: " + amount);
         }
-        if (!chronology.equals(period.getChronology())) {
-            throw new DateTimeException("Chronology mismatch, expected: " + chronology.getId()
+        if (!getChronology().equals(period.getChronology())) {
+            throw new DateTimeException("Chronology mismatch, expected: " + getChronology().getId()
                     + ", actual: " + period.getChronology().getId());
         }
         return period;
@@ -331,10 +316,55 @@ public record ChinesePeriod(ChineseChronology chronology, int years, int months,
     private void validateChronology(Temporal temporal) {
         Objects.requireNonNull(temporal, "temporal");
         Chronology actual = temporal.query(TemporalQueries.chronology());
-        if (actual != null && !chronology.equals(actual)) {
-            throw new DateTimeException("Chronology mismatch, expected: " + chronology.getId()
+        if (actual != null && !getChronology().equals(actual)) {
+            throw new DateTimeException("Chronology mismatch, expected: " + getChronology().getId()
                     + ", actual: " + actual.getId());
         }
     }
 
+    /**
+     * Replaces this period with a proxy retaining the chronology's data fingerprint check.
+     * 将此期间替换为代理，保留历法数据指纹校验。
+     *
+     * @return the serialization proxy
+     *         序列化代理
+     * @throws DateTimeException if the calendar data cannot be initialized
+     *                           如果历法数据无法初始化
+     */
+    @Serial
+    private Object writeReplace() {
+        return new Ser(getChronology(), years, months, days);
+    }
+
+    /**
+     * Serialization proxy preserving components and the chronology's fingerprint validation.
+     * 保存分量并保留历法指纹校验的序列化代理。
+     *
+     * @param chronology the chronology whose proxy verifies the calendar data
+     *                   其代理负责校验历法数据的历法
+     * @param years the signed year component
+     *              带符号的年分量
+     * @param months the signed month component
+     *               带符号的月分量
+     * @param days the signed day component
+     *             带符号的日分量
+     */
+    private record Ser(ChineseChronology chronology, int years, int months, int days) implements Serializable {
+        /**
+         * Restores the period after the chronology proxy has validated the data fingerprint.
+         * 在历法代理校验数据指纹后恢复期间。
+         *
+         * @return the restored Chinese period
+         *         恢复的农历期间
+         * @throws ObjectStreamException if the chronology is missing
+         *                               如果历法缺失
+         */
+        @Serial
+        private Object readResolve() throws ObjectStreamException {
+            if (chronology == null) {
+                throw new InvalidObjectException("Missing Chinese chronology");
+            }
+            return new ChinesePeriod(years, months, days);
+        }
+    }
 }
