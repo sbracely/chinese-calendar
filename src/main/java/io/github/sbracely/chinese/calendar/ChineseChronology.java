@@ -881,7 +881,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
             ChineseCalendarConfigData configData = ChineseCalendarConfigLoader.load();
             configSource = configData.description();
             return ChineseCalendarDataParser.parse(configData.properties(), ID, CALENDAR_TYPE);
-        } catch (Exception e) {
+        } catch (Exception | ServiceConfigurationError e) {
             throw new DateTimeException("Unable to initialize Chinese calendar from: "
                     + configSource, e);
         }

@@ -19,6 +19,7 @@ import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.ServiceConfigurationError;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -108,6 +109,15 @@ class ChineseChronologyCustomDataTest {
     @Test
     void spiProviderTakesPrecedenceOverSystemProperty() throws Exception {
         runWithSpiProvider("shared", fixture("common-only").toString(), fixture("custom").toString());
+    }
+
+    @Test
+    void cachesSpiLoadingFailureWithoutFallingBackOrRetrying() throws Exception {
+        Path descriptor = directory.resolve(Path.of("META-INF", "services",
+                "io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider"));
+        Files.createDirectories(descriptor.getParent());
+        Files.writeString(descriptor, "io.github.sbracely.chinese.calendar.spi.MissingConfigProvider");
+        run("invalid-spi", null, descriptor.toString());
     }
 
     @Test
@@ -331,6 +341,17 @@ class ChineseChronologyCustomDataTest {
                     Files.writeString(Path.of(config), "");
                 }
                 assertThat(catchThrowable(() -> new ChineseChronology().date(2023, 1, 1))).isSameAs(failure);
+            }
+            case "invalid-spi" -> {
+                chronology = (ChineseChronology) Chronology.of("Chinese");
+                Throwable failure = catchThrowable(() -> chronology.date(2023, 1, 1));
+                assertThat(failure).isInstanceOf(DateTimeException.class)
+                        .hasCauseInstanceOf(ServiceConfigurationError.class);
+                Files.delete(Path.of(args[1]));
+                assertThat(catchThrowable(() -> new ChineseChronology().date(2023, 1, 1))).isSameAs(failure);
+                assertThat(catchThrowable(() -> ChineseChronology.INSTANCE.date(2023, 1, 1))).isSameAs(failure);
+                assertThatThrownBy(() -> ChineseCalendarConfigLoader.configure(new Properties()))
+                        .isInstanceOf(IllegalStateException.class);
             }
             case "mismatch" -> {
                 chronology = (ChineseChronology) Chronology.of("Chinese");
