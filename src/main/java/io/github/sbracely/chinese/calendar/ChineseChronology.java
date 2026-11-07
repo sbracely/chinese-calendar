@@ -41,6 +41,7 @@ import static io.github.sbracely.chinese.calendar.ChineseEra.CHINESE_ERA;
  * 配置来源指定外部数据。
  * 显式配置和 SPI 提供者优先；随后依次检查系统属性 {@code chinese.calendar.config}、环境变量
  * {@code CHINESE_CALENDAR_CONFIG}、JVM 工作目录文件和 JAR 内置资源。
+ * SPI 提供者按 {@link ChineseCalendarConfigProvider#getOrder()} 升序检查。
  * 相对路径基于 JVM 工作目录，数据不可重新加载。
  */
 public final class ChineseChronology extends AbstractChronology implements Serializable {
@@ -329,8 +330,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * Creates a date from the era, year, month, and day.
-     * 根据纪元、年份、月份和日期创建农历日期。
+     * Creates a date in a regular month from the era, year, month, and day.
+     * 根据纪元、年份、月份和日期创建普通月中的农历日期。
      *
      * @param era       the era
      *                  纪元
@@ -353,8 +354,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * Creates a date from the proleptic year, month, and day.
-     * 根据历法年份、月份和日期创建农历日期。
+     * Creates a date in a regular month from the proleptic year, month, and day.
+     * 根据历法年份、月份和日期创建普通月中的农历日期。
      *
      * @param prolepticYear the proleptic year
      *                      历法年份
@@ -421,8 +422,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * Creates a date from the number of days since the epoch.
      * 根据自历元以来的天数创建农历日期。
      *
-     * @param epochDay the number of days since the epoch
-     *                 自历元以来的天数
+     * @param epochDay the number of days since ISO 1970-01-01
+     *                 自 ISO 日期 1970-01-01 起的天数
      * @return the created Chinese date
      *         创建的农历日期
      * @throws DateTimeException if the epoch day is outside the supported range
@@ -584,8 +585,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * Converts an era-based year to a proleptic year.
-     * 将纪元年份转换为历法年份。
+     * Returns the year-of-era unchanged after checking the sole Chinese era.
+     * This conversion does not validate the supported year range.
+     * 校验唯一农历纪元后，原样返回纪元年份。
+     * 此转换不校验受支持的年份范围。
      *
      * @param era       the era
      *                  纪元
@@ -725,6 +728,10 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *         解析后的农历日期；如果无法解析则返回 {@code null}
      * @throws DateTimeException if the fields conflict or cannot form a valid supported date
      *                           如果字段冲突或无法组成有效且受支持的日期
+     * @throws NullPointerException if the field map or resolver style is {@code null}
+     *                              如果字段映射或解析样式为 {@code null}
+     * @throws ArithmeticException if lenient date arithmetic overflows
+     *                             如果宽松日期运算溢出
      */
     @Override
     public ChineseDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
@@ -838,11 +845,15 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     //-----------------------------------------------------------------------
 
     /**
-     * Gets the calendar data, loading it from the configuration file if necessary.
-     * 获取日历数据；如果尚未加载，则从配置文件中加载。
+     * Gets the shared calendar data, loading the selected configuration once if necessary.
+     * Initialization failures are cached and rethrown on subsequent accesses.
+     * 获取共享历法数据，必要时仅加载一次选中的配置。
+     * 初始化失败会被缓存，并在后续访问时再次抛出。
      *
      * @return the calendar data for this chronology
      * 此历法的日历数据
+     * @throws DateTimeException if configuration selection, loading, or validation fails
+     *                           如果配置选择、加载或校验失败
      */
     private static ChineseCalendarData calendarData() {
         ChineseCalendarData data = chineseCalendarData;
@@ -867,8 +878,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     }
 
     /**
-     * Load the calendar data from the configuration file.
-     * 加载配置文件中的日历数据
+     * Selects a configuration source and parses its properties as Chinese calendar data.
+     * 选择配置来源，并将其属性解析为农历数据。
      *
      * @return the loaded calendar data
      * 加载的历法数据
@@ -927,12 +938,12 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         int month = epochMonthToMonth(data, epochMonth, year);
         boolean leapMonth = isLeapEpochMonth(data, epochMonth, year);
         int day = epochMonthToEpochDay(data, epochMonth);
-        int date = epochDay - day; // epochDay - dayOfEpoch(year, month);
+        int date = epochDay - day;
 
         int[] dateInfo = new int[4];
         dateInfo[0] = year;
         dateInfo[1] = month;
-        dateInfo[2] = date + 1; // change to 1-based.
+        dateInfo[2] = date + 1;
         dateInfo[3] = leapMonth ? 1 : 0;
         return dateInfo;
     }
@@ -1196,7 +1207,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *         月份天数
      */
     private int epochMonthLength(ChineseCalendarData data, int epochMonth) {
-        // The very last entry in the epochMonth table is not the start of a month
+        // The final entry is an exclusive bound; repeated starts are padding, not actual months.
+        // 最后一个条目是不包含在支持范围内的边界；重复起始日是填充槽位，并非实际月份。
         int result = data.monthStartEpochDayAt(epochMonth + 1) - data.monthStartEpochDayAt(epochMonth);
         if (result == 0) {
             return data.monthStartEpochDayAt(epochMonth + 2) - data.monthStartEpochDayAt(epochMonth);
@@ -1264,6 +1276,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     private long monthIndex(ChineseCalendarData data, ChineseDate date) {
         // The epoch-month table has padding slots for common years; they are not actual months.
+        // 纪元月份表中平年的填充槽位不属于实际月份。
         long months = (long) (date.prolepticYear() - data.minimumYear()) * 12;
         for (int leapYear : data.leapMonthByYear().keySet()) {
             if (leapYear < date.prolepticYear()) {
@@ -1285,6 +1298,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *
      * @return the serialization proxy
      *         序列化代理对象
+     * @throws DateTimeException if the calendar data cannot be initialized
+     *                           如果历法数据无法初始化
      */
     @Serial
     Object writeReplace() {

@@ -158,6 +158,25 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
         return ChineseDate.ofEpochDay(ChineseChronology.INSTANCE, LocalDate.now(clock).toEpochDay());
     }
 
+    /**
+     * Obtains a Chinese date from a temporal object, converting other calendars by epoch day.
+     * An existing Chinese date is returned unchanged.
+     * 从时态对象获取农历日期，其他历法的日期通过纪元天数转换。
+     * 如果传入对象已是农历日期，则原样返回。
+     *
+     * @param temporal the temporal object to convert
+     *                 要转换的时态对象
+     * @return the Chinese date representing the same epoch day
+     *         表示相同纪元天数的农历日期
+     * @throws NullPointerException if the temporal object is {@code null}
+     *                              如果时态对象为 {@code null}
+     * @throws DateTimeException if an epoch day cannot be obtained or is outside the supported range
+     *                           如果无法获取纪元天数或纪元天数超出支持范围
+     */
+    public static ChineseDate from(TemporalAccessor temporal) {
+        return ChineseChronology.INSTANCE.date(temporal);
+    }
+
     //-----------------------------------------------------------------------
     // Package-private factory methods
     // 包级工厂方法

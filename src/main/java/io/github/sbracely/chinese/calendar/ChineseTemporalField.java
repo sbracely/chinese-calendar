@@ -160,8 +160,10 @@ public enum ChineseTemporalField implements TemporalField {
     }
 
     /**
-     * Refines the range for the date's year; leap years permit thirteen months.
-     * 根据日期所属年份细化范围，闰年允许十三个月份。
+     * Refines the range for the date's year: common years have twelve ordinal months
+     * and a leap flag fixed at zero; leap years allow thirteen ordinal months and flags 0 or 1.
+     * 根据日期所属年份细化范围：平年的月份序号为 1 至 12，闰月标志仅为零；
+     * 闰年的月份序号为 1 至 13，闰月标志可为 0 或 1。
      *
      * @param temporal the Chinese date
      *                 农历日期

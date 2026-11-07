@@ -7,9 +7,11 @@ import java.util.Optional;
  * Supplies Chinese calendar configuration properties.
  * 提供农历配置属性。
  * <p>
- * Providers are ordered by ascending {@link #getOrder()} and are checked before built-in
- * configuration sources. Equal provider orders are rejected.
- * 配置提供者按 {@link #getOrder()} 升序排列，并优先于内置配置来源检查；提供者顺序相同会报错。
+ * Providers are ordered by ascending {@link #getOrder()}, after explicit configuration
+ * but before system-property, environment-variable, working-directory, and classpath sources.
+ * Equal provider orders are rejected.
+ * 配置提供者按 {@link #getOrder()} 升序排列，优先级低于显式配置，
+ * 高于系统属性、环境变量、工作目录和类路径来源；提供者顺序相同会报错。
  */
 public interface ChineseCalendarConfigProvider {
 

@@ -8,12 +8,22 @@ import java.util.Objects;
 import java.util.Properties;
 
 /**
- * Configuration properties selected by a {@link ChineseCalendarConfigProvider}.
- * 由 {@link ChineseCalendarConfigProvider} 选中的配置属性。
+ * A configuration source description and a defensive snapshot of its string properties.
+ * Stores effective string properties, including defaults; returned properties are also copied.
+ * 配置来源描述及其字符串属性的防御性快照。
+ * 保存包含默认值的有效字符串属性，返回的属性也会复制。
  */
 public final class ChineseCalendarConfigData {
 
+    /**
+     * The non-null source description used in initialization diagnostics.
+     * 初始化诊断使用的非空来源描述。
+     */
     private final String description;
+    /**
+     * The private snapshot of effective string properties, with defaults flattened.
+     * 有效字符串属性的私有快照，默认属性已合并为直接属性。
+     */
     private final Properties properties;
 
     /**
@@ -24,6 +34,8 @@ public final class ChineseCalendarConfigData {
      *                    来源描述
      * @param properties configuration properties
      *                    配置属性
+     * @throws NullPointerException if the description or properties are {@code null}
+     *                              如果描述或属性为 {@code null}
      */
     public ChineseCalendarConfigData(String description, Properties properties) {
         this.description = Objects.requireNonNull(description, "description");
@@ -35,8 +47,10 @@ public final class ChineseCalendarConfigData {
     }
 
     /**
-     * Loads properties from a file.
-     * 从文件加载属性。
+     * Loads properties from a file using {@link Properties#load(InputStream)}.
+     * Relative paths use the current JVM working directory.
+     * 使用 {@link Properties#load(InputStream)} 从文件加载属性。
+     * 相对路径基于当前 JVM 工作目录。
      *
      * @param path file path
      *             文件路径
@@ -44,6 +58,10 @@ public final class ChineseCalendarConfigData {
      *         加载的配置数据
      * @throws IOException if the file cannot be read
      *                     如果文件无法读取
+     * @throws NullPointerException if the path is {@code null}
+     *                              如果路径为 {@code null}
+     * @throws IllegalArgumentException if the file contains a malformed Unicode escape
+     *                                  如果文件包含格式错误的 Unicode 转义
      */
     public static ChineseCalendarConfigData fromPath(Path path) throws IOException {
         Path absolutePath = Objects.requireNonNull(path, "path").toAbsolutePath().normalize();

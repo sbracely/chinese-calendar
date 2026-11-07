@@ -9,20 +9,55 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * Selects the highest-priority configuration data.
- * 选择优先级最高的配置数据。
+ * Selects configuration from explicit settings, ordered SPI providers, a system property,
+ * an environment variable, a working-directory file, then the built-in resource.
+ * A selected source that fails does not trigger fallback to lower-priority sources.
+ * 依次从显式配置、有序 SPI 提供者、系统属性、环境变量、工作目录文件和内置资源选择配置。
+ * 选中的来源加载失败时，不会回退到优先级更低的来源。
  */
 public final class ChineseCalendarConfigLoader {
 
+    /**
+     * The system property specifying an external configuration path.
+     * 指定外部配置路径的系统属性名。
+     */
     private static final String SYSTEM_PROPERTY = "chinese.calendar.config";
+    /**
+     * The environment variable specifying an external configuration path.
+     * 指定外部配置路径的环境变量名。
+     */
     private static final String ENVIRONMENT_VARIABLE = "CHINESE_CALENDAR_CONFIG";
+    /**
+     * The configuration filename used in the working directory and on the classpath.
+     * 工作目录和类路径中使用的配置文件名。
+     */
     private static final String CONFIG_RESOURCE = "chinese-calendar-config.properties";
+    /**
+     * The normalized JVM working directory captured when this class is initialized.
+     * 此类初始化时记录的规范化 JVM 工作目录。
+     */
     private static final Path WORKING_DIRECTORY = Path.of(System.getProperty("user.dir"))
             .toAbsolutePath().normalize();
+    /**
+     * The explicitly selected absolute configuration path, or {@code null} if unset.
+     * 显式选择的绝对配置路径，未设置时为 {@code null}。
+     */
     private static volatile Path explicitPath;
+    /**
+     * The copied explicit configuration properties, or {@code null} if unset.
+     * 已复制的显式配置属性，未设置时为 {@code null}。
+     */
     private static volatile ChineseCalendarConfigData explicitConfig;
+    /**
+     * Whether source selection has started, preventing further explicit configuration.
+     * 是否已开始选择来源；开始后禁止再设置显式配置。
+     */
     private static boolean loadingStarted;
 
+    /**
+     * Prevents instantiation of this static configuration utility.
+     * 禁止实例化此静态配置工具类。
+     */
     private ChineseCalendarConfigLoader() {
     }
 
@@ -75,6 +110,13 @@ public final class ChineseCalendarConfigLoader {
         explicitConfig = new ChineseCalendarConfigData("explicit properties", properties);
     }
 
+    /**
+     * Checks that no explicit source has been selected and loading has not started.
+     * 检查是否尚未选择显式来源且尚未开始加载。
+     *
+     * @throws IllegalStateException if configuration is already selected or fixed
+     *                               如果已选择配置或配置已固定
+     */
     private static void ensureConfigurable() {
         if (loadingStarted) {
             throw new IllegalStateException("Chinese calendar data configuration is already fixed");
@@ -92,6 +134,10 @@ public final class ChineseCalendarConfigLoader {
      *         选中的配置数据
      * @throws IOException if a source cannot be evaluated
      *                     如果配置来源无法评估
+     * @throws IllegalStateException if multiple SPI providers have the same order
+     *                               如果多个 SPI 提供者具有相同顺序
+     * @throws IllegalArgumentException if a selected external path is blank or invalid
+     *                                  如果选中的外部路径为空白或无效
      */
     static synchronized ChineseCalendarConfigData load() throws IOException {
         loadingStarted = true;
@@ -134,11 +180,35 @@ public final class ChineseCalendarConfigLoader {
         return classpathConfig();
     }
 
+    /**
+     * Normalizes a path, resolving relative paths against the captured JVM working directory.
+     * 规范化路径，并以记录的 JVM 工作目录解析相对路径。
+     *
+     * @param value the path text
+     *              路径文本
+     * @return the normalized absolute path
+     *         规范化的绝对路径
+     * @throws java.nio.file.InvalidPathException if the path text is invalid
+     *                                           如果路径文本无效
+     */
     private static Path resolvePath(String value) {
         Path path = Path.of(value);
         return path.isAbsolute() ? path.normalize() : WORKING_DIRECTORY.resolve(path).normalize();
     }
 
+    /**
+     * Loads configuration from a nonblank external path.
+     * 从非空白的外部路径加载配置。
+     *
+     * @param value the external path text
+     *              外部路径文本
+     * @return the loaded configuration data
+     *         加载的配置数据
+     * @throws IllegalArgumentException if the path is blank or invalid
+     *                                  如果路径为空白或无效
+     * @throws IOException if the file cannot be read
+     *                     如果文件无法读取
+     */
     private static ChineseCalendarConfigData pathConfig(String value) throws IOException {
         if (value.isBlank()) {
             throw new IllegalArgumentException("External configuration path is blank");
@@ -146,6 +216,15 @@ public final class ChineseCalendarConfigLoader {
         return ChineseCalendarConfigData.fromPath(resolvePath(value));
     }
 
+    /**
+     * Loads the built-in properties resource using this class's class loader.
+     * 使用此类的类加载器加载内置属性资源。
+     *
+     * @return the loaded built-in configuration
+     *         加载的内置配置
+     * @throws IOException if the resource is missing or cannot be read
+     *                     如果资源不存在或无法读取
+     */
     private static ChineseCalendarConfigData classpathConfig() throws IOException {
         Properties properties = new Properties();
         try (var input = ChineseCalendarConfigLoader.class.getClassLoader().getResourceAsStream(CONFIG_RESOURCE)) {

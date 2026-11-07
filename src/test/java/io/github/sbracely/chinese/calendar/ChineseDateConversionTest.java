@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -28,6 +29,36 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ChineseDateConversionTest {
     private static final ChineseChronology CHRONOLOGY = ChineseChronology.INSTANCE;
     private static final String CALENDAR_DATA_RESOURCE = "calendar-data.csv";
+
+    @ParameterizedTest
+    @MethodSource("calendarDates")
+    void convertsGregorianTemporalsUsingFrom(int year, int month, boolean leapMonth, int day,
+                                            String isoDate, boolean leapYear, int ordinalMonth) {
+        LocalDate gregorianDate = LocalDate.parse(isoDate);
+        ChineseDate expected = CHRONOLOGY.date(year, month, leapMonth, day);
+
+        assertThat(ChineseDate.from(gregorianDate)).isEqualTo(expected);
+        assertThat(ChineseDate.from(gregorianDate.atTime(12, 0))).isEqualTo(expected);
+    }
+
+    @Test
+    void returnsExistingChineseDateUnchangedUsingFrom() {
+        ChineseDate date = CHRONOLOGY.date(2023, 2, true, 1);
+
+        assertThat(ChineseDate.from(date)).isSameAs(date);
+    }
+
+    @Test
+    void rejectsInputsWithoutSupportedDateUsingFrom() {
+        assertThatThrownBy(() -> ChineseDate.from(null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> ChineseDate.from(LocalTime.NOON))
+                .isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> ChineseDate.from(LocalDate.of(1800, 1, 1)))
+                .isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> ChineseDate.from(LocalDate.of(2101, 1, 1)))
+                .isInstanceOf(DateTimeException.class);
+    }
 
     @Test
     void representsDatesWithPaddedFieldsAndDistinctLeapMonths() {

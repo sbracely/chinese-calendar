@@ -40,6 +40,14 @@ public record ChinesePeriod(ChineseChronology chronology, int years, int months,
      * Validates the chronology, leaving the signed components unnormalized.
      * 校验历法，保留未归一化的带符号分量。
      *
+     * @param chronology the non-null Chinese chronology
+     *                   不为 null 的农历历法
+     * @param years the signed year component
+     *              带符号的年分量
+     * @param months the signed month component
+     *               带符号的月分量
+     * @param days the signed day component
+     *             带符号的日分量
      * @throws NullPointerException if the chronology is {@code null}
      *                              如果历法为 {@code null}
      */
