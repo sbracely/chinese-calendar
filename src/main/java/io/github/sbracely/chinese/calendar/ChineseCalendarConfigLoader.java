@@ -28,10 +28,21 @@ public final class ChineseCalendarConfigLoader {
 
     /**
      * Selects the explicit configuration path, ahead of all discovered sources.
-     * 选择显式配置路径，其优先级高于所有自动发现的来源。
+     * Relative paths use the JVM working directory. Explicit configuration may be selected only
+     * once, before any chronology instance starts loading data. Loading failures are cached;
+     * they do not trigger fallback or allow reconfiguration.
+     * 选择显式配置路径，其优先级高于所有自动发现的来源；相对路径基于 JVM 工作目录。
+     * 显式配置只能选择一次，且须在任何历法实例开始加载数据前选择。
+     * 加载失败会被缓存，不会回退到其他来源，也不能重新配置。
      *
      * @param path configuration path
      *             配置文件路径
+     * @throws NullPointerException if the path is null
+     *                              如果路径为 null
+     * @throws IllegalArgumentException if the path is blank
+     *                                  如果路径为空白
+     * @throws IllegalStateException if configuration was already selected or data loading has started
+     *                               如果已选择配置或已开始加载数据
      */
     public static synchronized void configure(Path path) {
         Objects.requireNonNull(path, "path");
@@ -44,10 +55,19 @@ public final class ChineseCalendarConfigLoader {
 
     /**
      * Selects explicit configuration properties, ahead of all discovered sources.
-     * 选择显式配置属性，其优先级高于所有自动发现的来源。
+     * Effective string properties, including defaults, are copied. Explicit configuration may be
+     * selected only once, before any chronology instance starts loading data. Loading failures
+     * are cached; they do not trigger fallback or allow reconfiguration.
+     * 选择显式配置属性，其优先级高于所有自动发现的来源；复制包含默认值的有效字符串属性。
+     * 显式配置只能选择一次，且须在任何历法实例开始加载数据前选择。
+     * 加载失败会被缓存，不会回退到其他来源，也不能重新配置。
      *
      * @param properties configuration properties
      *                   配置属性
+     * @throws NullPointerException if the properties are null
+     *                              如果属性为 null
+     * @throws IllegalStateException if configuration was already selected or data loading has started
+     *                               如果已选择配置或已开始加载数据
      */
     public static synchronized void configure(Properties properties) {
         Objects.requireNonNull(properties, "properties");

@@ -1,6 +1,7 @@
 package io.github.sbracely.chinese.calendar;
 
 import io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigData;
+import io.github.sbracely.chinese.calendar.spi.TestConfigProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -112,6 +113,24 @@ class ChineseChronologyCustomDataTest {
     }
 
     @Test
+    void ordersSpiProvidersAndStopsBeforeEvaluatingLowerPriorityProviders() throws Exception {
+        registerProviders(TestConfigProvider.LaterProvider.class, TestConfigProvider.EarlyProvider.class);
+        runWithSpiProvider("spi-order", fixture("common-only").toString(), fixture("custom").toString());
+    }
+
+    @Test
+    void continuesToNextSpiProviderWhenHigherPriorityProviderIsEmpty() throws Exception {
+        registerProviders(TestConfigProvider.LaterProvider.class, TestConfigProvider.EarlyProvider.class);
+        runWithSpiProvider("spi-empty", null, fixture("custom").toString());
+    }
+
+    @Test
+    void rejectsDuplicateSpiOrdersBeforeEvaluatingAnyProvider() throws Exception {
+        registerProviders(TestConfigProvider.EarlyProvider.class, TestConfigProvider.SameOrderProvider.class);
+        runWithSpiProvider("spi-duplicate", null, fixture("custom").toString());
+    }
+
+    @Test
     void cachesSpiLoadingFailureWithoutFallingBackOrRetrying() throws Exception {
         Path descriptor = directory.resolve(Path.of("META-INF", "services",
                 "io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider"));
@@ -172,6 +191,13 @@ class ChineseChronologyCustomDataTest {
         run("mismatch", null, serialized.toString());
         run("read", fixture("equivalent").toString(), serialized.toString());
         run("mismatch", fixture("changed-leap").toString(), serialized.toString());
+    }
+
+    private void registerProviders(Class<?>... providers) throws Exception {
+        Path descriptor = directory.resolve(Path.of("META-INF", "services",
+                "io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider"));
+        Files.createDirectories(descriptor.getParent());
+        Files.writeString(descriptor, Stream.of(providers).map(Class::getName).collect(Collectors.joining("\n")));
     }
 
     private Path fixture(String name) throws Exception {
@@ -253,6 +279,23 @@ class ChineseChronologyCustomDataTest {
         String config = System.getProperty("chinese.calendar.config");
         ChineseChronology chronology;
         switch (args[0]) {
+            case "spi-order", "spi-empty" -> {
+                boolean empty = args[0].equals("spi-empty");
+                System.setProperty("test.chinese.calendar.config.early.empty", Boolean.toString(empty));
+                System.setProperty("test.chinese.calendar.config.later.fail", Boolean.toString(!empty));
+                chronology = (ChineseChronology) Chronology.of("Chinese");
+                assertThat(chronology.date(2023, 1, 1).toEpochDay())
+                        .isEqualTo(LocalDate.of(2023, 1, 23).toEpochDay());
+                assertThat(TestConfigProvider.invocations)
+                        .containsExactlyElementsOf(empty ? List.of("early", "later") : List.of("early"));
+            }
+            case "spi-duplicate" -> {
+                Throwable failure = catchThrowable(() -> ChineseChronology.INSTANCE.date(2023, 1, 1));
+                assertThat(failure).isInstanceOf(DateTimeException.class)
+                        .hasCauseInstanceOf(IllegalStateException.class);
+                assertThat(failure.getCause()).hasMessage("Multiple configuration providers have order 100");
+                assertThat(TestConfigProvider.invocations).isEmpty();
+            }
             case "configure" -> {
                 ChineseCalendarConfigLoader.configure(Path.of(args[1]));
                 System.clearProperty("chinese.calendar.config");
