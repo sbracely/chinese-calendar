@@ -35,23 +35,23 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
 
 ## Custom Chinese calendar data extensions 自定义扩展农历数据
 
-Configuration is selected in priority order. Call `ConfigLoader.configure(...)` before first use.<br>
-配置按优先级选择。须在首次使用前调用 `ConfigLoader.configure(...)`。
+Configuration is selected in priority order.<br>
+配置按优先级选择。
 
-1. `ConfigLoader.configure(Path)` or `ConfigLoader.configure(Properties)` — explicit file path or in-memory properties.<br>
+1. `ChineseCalendarConfigLoader.configure(Path)` or `ChineseCalendarConfigLoader.configure(Properties)` — explicit file path or in-memory properties.<br>
    显式指定文件路径或内存中的配置属性。
-2. `ConfigSource` implementations registered through
-   `META-INF/services/io.github.sbracely.chinese.calendar.spi.ConfigSource`, ordered by
-   `getOrder()` (lower values come first).<br>
-   通过 Java SPI 注册的 `ConfigSource`，按 `getOrder()` 升序排列（数值越小越优先）。
-3. JVM property `chinese.calendar.config` (order 100).<br>
-   JVM 系统属性 `chinese.calendar.config`（顺序值 100）。
-4. Environment variable `CHINESE_CALENDAR_CONFIG` (order 200).<br>
-   环境变量 `CHINESE_CALENDAR_CONFIG`（顺序值 200）。
-5. `chinese-calendar-config.properties` in the JVM working directory (order 300).<br>
-   JVM 工作目录下的同名文件（顺序值 300）。
-6. Bundled `chinese-calendar-config.properties` resource (order 400).<br>
-   JAR 内置的同名资源（顺序值 400）。
+2. `ChineseCalendarConfigProvider` implementations registered through
+   `META-INF/services/io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider`, ordered by
+   `getOrder()`.<br>
+   通过 Java SPI 注册的 `ChineseCalendarConfigProvider`，按 `getOrder()` 排序。
+3. JVM property `chinese.calendar.config`.<br>
+   JVM 系统属性 `chinese.calendar.config`。
+4. Environment variable `CHINESE_CALENDAR_CONFIG`.<br>
+   环境变量 `CHINESE_CALENDAR_CONFIG`。
+5. `chinese-calendar-config.properties` in the JVM working directory.<br>
+   JVM 工作目录下的同名文件。
+6. Bundled `chinese-calendar-config.properties` resource.<br>
+   JAR 内置的同名资源。
 
 ## Default data sources 默认数据来源
 

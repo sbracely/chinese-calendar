@@ -1,10 +1,9 @@
 package io.github.sbracely.chinese.calendar;
 
-import io.github.sbracely.chinese.calendar.spi.ConfigData;
-import io.github.sbracely.chinese.calendar.spi.ConfigSource;
 import io.github.sbracely.chinese.calendar.internal.ChineseCalendarData;
 import io.github.sbracely.chinese.calendar.internal.ChineseCalendarDataParser;
-import io.github.sbracely.chinese.calendar.internal.ConfigLoader;
+import io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigData;
+import io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -28,16 +27,19 @@ import static io.github.sbracely.chinese.calendar.ChineseEra.CHINESE_ERA;
  * 农历历法系统
  * <p>
  * All instances share one data set. An external data file can be selected before the first
- * calendar-data access using {@link ConfigLoader#configure(Path)},
- * {@link ConfigLoader#configure(Properties)}, or an ordered {@link ConfigSource}.
- * Sources are checked by ascending order; built-in sources use 100 for the system property,
- * 200 for the environment variable, 300 for the working-directory file, and 400 for the
- * built-in resource. Relative paths use the JVM working directory. Data cannot be reloaded.
+ * calendar-data access using {@link ChineseCalendarConfigLoader#configure(Path)},
+ * {@link ChineseCalendarConfigLoader#configure(Properties)}, or an ordered
+ * {@link ChineseCalendarConfigProvider}.
+ * Configuration is selected from explicit settings, ordered SPI providers, the system property,
+ * the environment variable, the working-directory file, then the built-in resource. SPI providers
+ * are ordered by ascending {@link ChineseCalendarConfigProvider#getOrder()}. Relative paths use
+ * the JVM working directory. Data cannot be reloaded.
  * 所有实例共享一套数据。首次访问历法数据前，可通过
- * {@link ConfigLoader#configure(Path)}、
- * {@link ConfigLoader#configure(Properties)} 或有序的 {@link ConfigSource}
+ * {@link ChineseCalendarConfigLoader#configure(Path)}、
+ * {@link ChineseCalendarConfigLoader#configure(Properties)} 或有序的
+ * {@link ChineseCalendarConfigProvider}
  * 配置来源指定外部数据。
- * 内置来源依次检查系统属性 {@code chinese.calendar.config}、环境变量
+ * 显式配置和 SPI 提供者优先；随后依次检查系统属性 {@code chinese.calendar.config}、环境变量
  * {@code CHINESE_CALENDAR_CONFIG}、JVM 工作目录文件和 JAR 内置资源。
  * 相对路径基于 JVM 工作目录，数据不可重新加载。
  */
@@ -77,7 +79,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * The immutable calendar data shared by all instances.
      * 所有实例共享的不可变历法数据。
      */
-    private static volatile ChineseCalendarData calendarData;
+    private static volatile ChineseCalendarData chineseCalendarData;
 
     /**
      * The cached failure from the single data loading attempt.
@@ -843,17 +845,17 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * 此历法的日历数据
      */
     private static ChineseCalendarData calendarData() {
-        ChineseCalendarData data = calendarData;
+        ChineseCalendarData data = chineseCalendarData;
         if (data == null) {
             synchronized (ChineseChronology.class) {
-                data = calendarData;
+                data = chineseCalendarData;
                 if (data == null) {
                     if (initializationFailure != null) {
                         throw initializationFailure;
                     }
                     try {
                         data = loadCalendarData();
-                        calendarData = data;
+                        chineseCalendarData = data;
                     } catch (DateTimeException e) {
                         initializationFailure = e;
                         throw e;
@@ -876,7 +878,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     private static ChineseCalendarData loadCalendarData() {
         String configSource = "configuration source";
         try {
-            ConfigData configData = ConfigLoader.load();
+            ChineseCalendarConfigData configData = ChineseCalendarConfigLoader.load();
             configSource = configData.description();
             return ChineseCalendarDataParser.parse(configData.properties(), ID, CALENDAR_TYPE);
         } catch (Exception e) {

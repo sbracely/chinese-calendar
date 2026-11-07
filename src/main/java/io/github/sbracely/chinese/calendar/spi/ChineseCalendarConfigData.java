@@ -8,10 +8,10 @@ import java.util.Objects;
 import java.util.Properties;
 
 /**
- * Configuration properties selected by a {@link ConfigSource}.
- * 由 {@link ConfigSource} 选中的配置属性。
+ * Configuration properties selected by a {@link ChineseCalendarConfigProvider}.
+ * 由 {@link ChineseCalendarConfigProvider} 选中的配置属性。
  */
-public final class ConfigData {
+public final class ChineseCalendarConfigData {
 
     private final String description;
     private final Properties properties;
@@ -25,7 +25,7 @@ public final class ConfigData {
      * @param properties configuration properties
      *                    配置属性
      */
-    public ConfigData(String description, Properties properties) {
+    public ChineseCalendarConfigData(String description, Properties properties) {
         this.description = Objects.requireNonNull(description, "description");
         this.properties = new Properties();
         this.properties.putAll(Objects.requireNonNull(properties, "properties"));
@@ -42,13 +42,13 @@ public final class ConfigData {
      * @throws IOException if the file cannot be read
      *                     如果文件无法读取
      */
-    public static ConfigData fromPath(Path path) throws IOException {
+    public static ChineseCalendarConfigData fromPath(Path path) throws IOException {
         Path absolutePath = Objects.requireNonNull(path, "path").toAbsolutePath().normalize();
         Properties properties = new Properties();
         try (InputStream input = Files.newInputStream(absolutePath)) {
             properties.load(input);
         }
-        return new ConfigData(absolutePath.toString(), properties);
+        return new ChineseCalendarConfigData(absolutePath.toString(), properties);
     }
 
     /**

@@ -1,6 +1,5 @@
 package io.github.sbracely.chinese.calendar;
 
-import io.github.sbracely.chinese.calendar.internal.ConfigLoader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -224,16 +223,16 @@ class ChineseChronologyCustomDataTest {
         ChineseChronology chronology;
         switch (args[0]) {
             case "configure" -> {
-                ConfigLoader.configure(Path.of(args[1]));
+                ChineseCalendarConfigLoader.configure(Path.of(args[1]));
                 System.clearProperty("chinese.calendar.config");
                 chronology = (ChineseChronology) Chronology.of("Chinese");
                 assertThat(chronology.date(2023, 1, 1).toEpochDay())
                         .isEqualTo(LocalDate.of(2023, 1, 23).toEpochDay());
-                assertThatThrownBy(() -> ConfigLoader.configure(Path.of(args[1])))
+                assertThatThrownBy(() -> ChineseCalendarConfigLoader.configure(Path.of(args[1])))
                         .isInstanceOf(IllegalStateException.class);
             }
             case "configure-relative" -> {
-                ConfigLoader.configure(Path.of("custom.properties"));
+                ChineseCalendarConfigLoader.configure(Path.of("custom.properties"));
                 chronology = ChineseChronology.INSTANCE;
                 assertThat(chronology.date(2023, 1, 1).toEpochDay())
                         .isEqualTo(LocalDate.of(2023, 1, 23).toEpochDay());
@@ -243,21 +242,21 @@ class ChineseChronologyCustomDataTest {
                 try (var input = Files.newInputStream(Path.of(args[1]))) {
                     properties.load(input);
                 }
-                ConfigLoader.configure(properties);
+                ChineseCalendarConfigLoader.configure(properties);
                 properties.clear();
                 chronology = (ChineseChronology) Chronology.of("Chinese");
                 assertThat(chronology.date(2023, 1, 1).toEpochDay())
                         .isEqualTo(LocalDate.of(2023, 1, 23).toEpochDay());
-                assertThatThrownBy(() -> ConfigLoader.configure(new Properties()))
+                assertThatThrownBy(() -> ChineseCalendarConfigLoader.configure(new Properties()))
                         .isInstanceOf(IllegalStateException.class);
             }
             case "configure-common" -> {
-                ConfigLoader.configure(Path.of(args[1]));
+                ChineseCalendarConfigLoader.configure(Path.of(args[1]));
                 chronology = (ChineseChronology) Chronology.of("Chinese");
                 assertThat(chronology.range(ChronoField.YEAR).getMinimum()).isEqualTo(2024);
                 assertThat(chronology.date(2024, 1, 1).toEpochDay())
                         .isEqualTo(LocalDate.of(2024, 2, 10).toEpochDay());
-                assertThatThrownBy(() -> ConfigLoader.configure(Path.of(args[1])))
+                assertThatThrownBy(() -> ChineseCalendarConfigLoader.configure(Path.of(args[1])))
                         .isInstanceOf(IllegalStateException.class);
             }
             case "shared" -> {
@@ -278,7 +277,7 @@ class ChineseChronologyCustomDataTest {
                 assertThat(chronology.date(2023, 12, 30).plusDays(1)).isEqualTo(chronology.date(2024, 1, 1));
                 Path selectedConfig = Path.of(args.length > 1 ? args[1] : config);
                 Files.delete(selectedConfig);
-                assertThatThrownBy(() -> ConfigLoader.configure(selectedConfig))
+                assertThatThrownBy(() -> ChineseCalendarConfigLoader.configure(selectedConfig))
                         .isInstanceOf(IllegalStateException.class);
                 assertThat(ChineseChronology.INSTANCE.date(2023, 1, 1).toEpochDay()).isEqualTo(first);
                 assertThat(Chronology.of("chinese").date(2023, 1, 1).toEpochDay()).isEqualTo(first);
@@ -305,7 +304,7 @@ class ChineseChronologyCustomDataTest {
                 chronology = (ChineseChronology) Chronology.of("Chinese");
                 Throwable failure = catchThrowable(() -> chronology.date(2023, 1, 1));
                 assertThat(failure).isInstanceOf(DateTimeException.class);
-                assertThatThrownBy(() -> ConfigLoader.configure(new Properties()))
+                assertThatThrownBy(() -> ChineseCalendarConfigLoader.configure(new Properties()))
                         .isInstanceOf(IllegalStateException.class);
                 if (config != null && !config.isBlank()) {
                     Files.writeString(Path.of(config), "version=1");
