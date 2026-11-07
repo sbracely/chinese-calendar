@@ -1,5 +1,6 @@
 package io.github.sbracely.chinese.calendar;
 
+import io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigData;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -64,6 +65,26 @@ class ChineseChronologyCustomDataTest {
     void configuresPropertiesBeforeLoadingData() throws Exception {
         runWithEnvironment("configure-properties", fixture("common-only").toString(),
                 fixture("common-only").toString(), new String[]{fixture("custom").toString()});
+    }
+
+    @Test
+    void copiesInheritedPropertiesWithOverridesAndWithoutSharingMutableState() {
+        Properties defaults = new Properties();
+        defaults.setProperty("id", "Chinese");
+        defaults.setProperty("iso-start", "2023-01-22");
+        Properties properties = new Properties(defaults);
+        properties.setProperty("iso-start", "2023-01-23");
+
+        ChineseCalendarConfigData data = new ChineseCalendarConfigData("test", properties);
+        defaults.setProperty("id", "changed");
+        properties.clear();
+
+        Properties copy = data.properties();
+        assertThat(copy.getProperty("id")).isEqualTo("Chinese");
+        assertThat(copy.getProperty("iso-start")).isEqualTo("2023-01-23");
+        assertThat(copy.entrySet()).hasSize(2);
+        copy.clear();
+        assertThat(data.properties().getProperty("id")).isEqualTo("Chinese");
     }
 
     @Test

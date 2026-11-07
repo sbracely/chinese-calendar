@@ -28,7 +28,10 @@ public final class ChineseCalendarConfigData {
     public ChineseCalendarConfigData(String description, Properties properties) {
         this.description = Objects.requireNonNull(description, "description");
         this.properties = new Properties();
-        this.properties.putAll(Objects.requireNonNull(properties, "properties"));
+        Objects.requireNonNull(properties, "properties");
+        for (String name : properties.stringPropertyNames()) {
+            this.properties.setProperty(name, properties.getProperty(name));
+        }
     }
 
     /**
