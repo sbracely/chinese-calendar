@@ -33,7 +33,7 @@ public final class ChineseCalendarDataParser {
     private ChineseCalendarDataParser() {
     }
 
-    public static Result parse(Properties properties, String expectedId, String expectedType) {
+    public static ChineseCalendarData parse(Properties properties, String expectedId, String expectedType) {
         String id = properties.getProperty(KEY_ID);
         if (!expectedId.equals(id)) {
             throw new IllegalArgumentException("Configuration is for a different calendar: " + id);
@@ -98,7 +98,7 @@ public final class ChineseCalendarDataParser {
                 monthsByYear.values(), minimumEpochDay, maximumMonthsInYear);
         int[] monthStartEpochDays = monthStartData.monthStartEpochDays;
         int maximumEpochDay = monthStartEpochDays[monthStartEpochDays.length - 1] - 1;
-        return new Result(monthStartEpochDays, minimumEpochDay, maximumEpochDay, epochMonthOffset,
+        return new ChineseCalendarData(monthStartEpochDays, minimumEpochDay, maximumEpochDay, epochMonthOffset,
                 monthStartData.minimumDaysInMonth, monthStartData.maximumDaysInMonth,
                 maximumMonthsInYear, monthStartData.minimumDaysInYear, monthStartData.maximumDaysInYear,
                 leapMonthByYear, minimumYear, maximumYear,
@@ -188,22 +188,6 @@ public final class ChineseCalendarDataParser {
                     .digest(content.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException e) {
             throw new AssertionError(e);
-        }
-    }
-
-    public record Result(int[] monthStartEpochDays, int minimumEpochDay, int maximumEpochDay,
-                         int epochMonthOffset, int minimumDaysInMonth, int maximumDaysInMonth,
-                         int maximumMonthsInYear, int minimumDaysInYear, int maximumDaysInYear,
-                         Map<Integer, Integer> leapMonthByYear, int minimumYear, int maximumYear,
-                         String fingerprint) {
-        public Result {
-            monthStartEpochDays = monthStartEpochDays.clone();
-            leapMonthByYear = Map.copyOf(leapMonthByYear);
-        }
-
-        @Override
-        public int[] monthStartEpochDays() {
-            return monthStartEpochDays.clone();
         }
     }
 

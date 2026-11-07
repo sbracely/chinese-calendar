@@ -27,6 +27,8 @@ public final class ConfigLoader {
     private static final Path WORKING_DIRECTORY = Path.of(System.getProperty("user.dir"))
             .toAbsolutePath().normalize();
     private static volatile Path explicitPath;
+    private static volatile ConfigData explicitConfig;
+    private static boolean loadingStarted;
 
     private ConfigLoader() {
     }
@@ -43,11 +45,30 @@ public final class ConfigLoader {
         if (path.toString().isBlank()) {
             throw new IllegalArgumentException("External configuration path is blank");
         }
-        if (explicitPath != null) {
-            throw new IllegalStateException("Explicit configuration path is already selected");
+        ensureConfigurable();
+        explicitPath = path.isAbsolute() ? path.normalize() : WORKING_DIRECTORY.resolve(path).normalize();
+    }
+
+    /**
+     * Selects explicit configuration properties, ahead of all discovered sources.
+     * 选择显式配置属性，其优先级高于所有自动发现的来源。
+     *
+     * @param properties configuration properties
+     *                   配置属性
+     */
+    public static synchronized void configure(Properties properties) {
+        Objects.requireNonNull(properties, "properties");
+        ensureConfigurable();
+        explicitConfig = new ConfigData("explicit properties", properties);
+    }
+
+    private static void ensureConfigurable() {
+        if (loadingStarted) {
+            throw new IllegalStateException("Chinese calendar data configuration is already fixed");
         }
-        Path selectedPath = path.isAbsolute() ? path.normalize() : WORKING_DIRECTORY.resolve(path).normalize();
-        explicitPath = selectedPath;
+        if (explicitPath != null || explicitConfig != null) {
+            throw new IllegalStateException("Explicit configuration is already selected");
+        }
     }
 
     /**
@@ -59,7 +80,12 @@ public final class ConfigLoader {
      * @throws IOException if a source cannot be evaluated
      *                     如果配置来源无法评估
      */
-    public static ConfigData load() throws IOException {
+    public static synchronized ConfigData load() throws IOException {
+        loadingStarted = true;
+        ConfigData selectedConfig = explicitConfig;
+        if (selectedConfig != null) {
+            return selectedConfig;
+        }
         Path selectedPath = explicitPath;
         if (selectedPath != null) {
             return ConfigData.fromPath(selectedPath);

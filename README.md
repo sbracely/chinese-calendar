@@ -35,11 +35,11 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
 
 ## Custom Chinese calendar data extensions 自定义扩展农历数据
 
-Configuration is selected in priority order. Call `configure(Path)` before first use.<br>
-配置按优先级选择。`configure(Path)` 须在首次使用前调用。
+Configuration is selected in priority order. Call `ConfigLoader.configure(...)` before first use.<br>
+配置按优先级选择。须在首次使用前调用 `ConfigLoader.configure(...)`。
 
-1. `ChineseChronology.configure(Path)` — explicit file path.<br>
-   显式指定文件路径。
+1. `ConfigLoader.configure(Path)` or `ConfigLoader.configure(Properties)` — explicit file path or in-memory properties.<br>
+   显式指定文件路径或内存中的配置属性。
 2. `ConfigSource` implementations registered through
    `META-INF/services/io.github.sbracely.chinese.calendar.spi.ConfigSource`, ordered by
    `getOrder()` (lower values come first).<br>
