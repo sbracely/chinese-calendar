@@ -10,7 +10,6 @@ import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.chrono.ChronoLocalDate;
-import java.time.chrono.ChronoPeriod;
 import java.time.temporal.*;
 import java.util.Objects;
 
@@ -778,7 +777,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      *                           如果结束日期无法转换或无法计算期间
      */
     @Override
-    public ChronoPeriod until(ChronoLocalDate endDateExclusive) {
+    public ChinesePeriod until(ChronoLocalDate endDateExclusive) {
         ChineseDate end = getChronology().date(endDateExclusive);
         long years = yearsUntil(end);
         ChineseDate afterYears = plusYears(years);

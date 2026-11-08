@@ -53,7 +53,9 @@ class ChinesePeriodTest {
         assertThat(CHRONOLOGY.period(0, -1, 1).isNegative()).isTrue();
         assertThatThrownBy(() -> period.get(WEEKS))
                 .isInstanceOf(UnsupportedTemporalTypeException.class);
-        assertThatThrownBy(() -> period.get(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> period.get(null))
+                .isInstanceOf(UnsupportedTemporalTypeException.class)
+                .hasMessage("Unsupported unit: null");
     }
 
     @Test
@@ -140,6 +142,16 @@ class ChinesePeriodTest {
         assertThat(period.multipliedBy(2)).isEqualTo(CHRONOLOGY.period(2, 26, -6));
         assertThat(period.negated()).isEqualTo(CHRONOLOGY.period(-1, -13, 3));
         assertThat(period.multipliedBy(0).isZero()).isTrue();
+    }
+
+    @Test
+    void reusesInstancesWhenMultiplicationDoesNotChangeComponents() {
+        ChinesePeriod period = CHRONOLOGY.period(Integer.MIN_VALUE, 13, -3);
+        assertThat(period.multipliedBy(1)).isSameAs(period);
+        ChinesePeriod zero = CHRONOLOGY.period(0, 0, 0);
+        for (int scalar : new int[]{Integer.MIN_VALUE, -1, 0, 1, Integer.MAX_VALUE}) {
+            assertThat(zero.multipliedBy(scalar)).isSameAs(zero);
+        }
     }
 
     @Test
@@ -276,7 +288,7 @@ class ChinesePeriodTest {
                         continue;
                     }
                     ChineseDate end = CHRONOLOGY.dateEpochDay(targetDay);
-                    ChronoPeriod period = start.until(end);
+                    ChinesePeriod period = start.until(end);
                     assertThat(start.plus(period)).as("%s to %s via %s", start, end, period).isEqualTo(end);
                     assertThat(ChronoPeriod.between(start, end)).isEqualTo(period);
                     assertThat(start.plus(period.normalized())).isEqualTo(end);

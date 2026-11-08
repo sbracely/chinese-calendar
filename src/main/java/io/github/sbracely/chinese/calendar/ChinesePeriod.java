@@ -53,19 +53,16 @@ public record ChinesePeriod(int years, int months, int days)
      *             要查询的单位
      * @return the signed component
      *         带符号的分量
-     * @throws NullPointerException if the unit is {@code null}
-     *                              如果单位为 {@code null}
-     * @throws UnsupportedTemporalTypeException if the unit is not years, months, or days
-     *                                         如果单位不是年、月或日
+     * @throws UnsupportedTemporalTypeException if the unit is null or not years, months, or days
+     *                                         如果单位为空或不是年、月或日
      */
     @Override
     public long get(TemporalUnit unit) {
-        Objects.requireNonNull(unit, "unit");
         return switch (unit) {
             case ChronoUnit.YEARS -> years;
             case ChronoUnit.MONTHS -> months;
             case ChronoUnit.DAYS -> days;
-            default -> throw new UnsupportedTemporalTypeException("Unsupported unit: " + unit);
+            case null, default -> throw new UnsupportedTemporalTypeException("Unsupported unit: " + unit);
         };
     }
 
@@ -154,6 +151,9 @@ public record ChinesePeriod(int years, int months, int days)
      */
     @Override
     public ChinesePeriod multipliedBy(int scalar) {
+        if (isZero() || scalar == 1) {
+            return this;
+        }
         return new ChinesePeriod(Math.multiplyExact(years, scalar),
                 Math.multiplyExact(months, scalar), Math.multiplyExact(days, scalar));
     }
