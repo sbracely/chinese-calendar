@@ -1,18 +1,19 @@
-# Chinese Calendar 农历
+# Chinese Calendar
+
+English | [简体中文](README.zh-CN.md)
 
 A Chinese calendar library built on Java's Date-Time API (`java.time.chrono`),
-with a default data range from January 31, 1900 to February 8, 2100 (Gregorian calendar).  
-基于 Java 日期时间 API（`java.time.chrono`）实现的中国农历库。默认数据范围：公元 1900 年农历庚子年正月初一至公元 2099
-年农历己未年腊月三十。
+with a default data range from January 31, 1900 to February 8, 2100 (Gregorian calendar).
 
-## Features 功能
+## Features
 
-### Implemented 已实现
+### Implemented
 
-- Java Date-Time API support<br>
-  Java Date-Time API 支持
+- Java Date-Time API support
 
-  **`ChronoLocalDate`**
+  **`ChineseDate` — `ChronoLocalDate` implementation**
+
+  Gregorian-date conversion, leap-month identification, and date arithmetic.
 
   ```java
   ChineseDate chineseDate = ChineseDate.now();
@@ -28,9 +29,17 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
   ChineseDate previousDay = chineseDate.plus(-1, ChronoUnit.DAYS);
   ChineseDate firstDayOfMonth = chineseDate.with(ChronoField.DAY_OF_MONTH, 1);
   long daysUntilNextMonth = chineseDate.until(nextMonth, ChronoUnit.DAYS);
+
+  ChineseDate leapMonthDate = ChineseChronology.INSTANCE.date(2023, 2, true, 1);
+  boolean leapMonth = leapMonthDate.isLeapMonth();
+  ChineseDate followingMonth = leapMonthDate.plusMonths(1);
+  ChineseDate followingYear = leapMonthDate.plusYears(1);
+  ChineseDate followingDay = leapMonthDate.plusDays(1);
   ```
 
-  **`Chronology`**
+  **`ChineseChronology` — `Chronology` implementation**
+
+  Date and period creation, leap-year queries, and leap-month lookup.
 
   ```java
   ChineseChronology chineseChronology = ChineseChronology.INSTANCE;
@@ -39,9 +48,15 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
   ChineseDate fromIsoDate = chineseChronology.date(gregorianDate);
   ChineseDate fromEpochDay = chineseChronology.dateEpochDay(gregorianDate.toEpochDay());
   ChineseDate fromFields = chineseChronology.date(2026, 1, 1);
+  ChineseDate leapMonthDate = chineseChronology.date(2023, 2, true, 1);
+  boolean leapYear = chineseChronology.isLeapYear(2023);
+  int leapMonth = chineseChronology.getLeapMonth(2023);
+  ChinesePeriod period = chineseChronology.period(1, 2, 3);
   ```
 
-  **`ChronoPeriod`**
+  **`ChinesePeriod` — `ChronoPeriod` implementation**
+
+  Period factories, component operations, interval calculation, and text parsing.
 
   ```java
   ChineseDate chineseDate = ChineseDate.now();
@@ -52,41 +67,43 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
   ChinesePeriod elapsed = chineseDate.until(result);
   ChinesePeriod between = ChinesePeriod.between(chineseDate, result);
   ChinesePeriod parsed = ChinesePeriod.parse(period.toString());
+
+  ChinesePeriod zero = ChinesePeriod.ZERO;
+  ChinesePeriod months = ChinesePeriod.ofMonths(13);
+  ChinesePeriod weeks = ChinesePeriod.ofWeeks(2);
+  ChinesePeriod adjusted = period.withYears(2).plusMonths(1).minusDays(1);
+  ChinesePeriod copied = ChinesePeriod.from(elapsed);
   ```
 
-- Automatic `Chronology` discovery via SPI and lookup by ID or calendar type<br>
-  通过 SPI 自动发现历法，支持按 ID 或历法类型查找
+  Leap months count as separate months; years and months are not automatically converted.
+  Periods are applied in year-month-day order.
+
+- Automatic `Chronology` discovery via SPI and lookup by ID or calendar type
 
   ```java
   Chronology byId = Chronology.of("Chinese");
   Chronology byType = Chronology.of("chinese");
   ```
 
-- Custom extension of Chinese calendar data<br>
-  自定义扩展农历数据
+- Custom extension of Chinese calendar data
 
-  Configure before the first calendar-data access.<br>
-  首次访问历法数据前配置。
+  Configure before the first calendar-data access.
 
   <details>
-  <summary>Configuration priorities and examples 配置优先级及示例</summary>
+  <summary>Configuration priorities and examples</summary>
 
-  Configuration is selected in priority order.<br>
-  配置按优先级选择。
+  Configuration is selected in priority order.
 
-  File-based examples assume `my-calendar.properties` contains valid calendar configuration.<br>
-  文件示例假定 `my-calendar.properties` 包含有效的历法配置。
+  File-based examples assume `my-calendar.properties` contains valid calendar configuration.
 
     1. `ChineseCalendarConfigLoader.configure(Path)` or `ChineseCalendarConfigLoader.configure(Properties)` — explicit
-       file path or in-memory properties.<br>
-       显式指定文件路径或内存中的配置属性。
+       file path or in-memory properties.
 
        ```java
        ChineseCalendarConfigLoader.configure(Path.of("my-calendar.properties"));
        ```
 
-       Or use in-memory properties (a single-year example).<br>
-       或使用内存属性（以下仅包含一个年份）。
+       Or use in-memory properties (a single-year example).
 
        ```java
        Properties properties = new Properties();
@@ -97,8 +114,7 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
 
     2. `ChineseCalendarConfigProvider` implementations registered through
        `META-INF/services/io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider`, ordered by
-       `getOrder()`.<br>
-       通过 Java SPI 注册的 `ChineseCalendarConfigProvider`，按 `getOrder()` 排序。
+       `getOrder()`.
 
        ```java
        package example;
@@ -116,45 +132,37 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
        }
        ```
 
-       Add the provider name to the service registration file.<br>
-       在上述服务注册文件中写入提供者类名。
+       Add the provider name to the service registration file.
 
        ```text
        example.MyCalendarConfigProvider
        ```
 
-    3. JVM property `chinese.calendar.config`.<br>
-       JVM 系统属性 `chinese.calendar.config`。
+    3. JVM property `chinese.calendar.config`.
 
        ```java
        System.setProperty("chinese.calendar.config", "my-calendar.properties");
        ```
 
-    4. Environment variable `CHINESE_CALENDAR_CONFIG`.<br>
-       环境变量 `CHINESE_CALENDAR_CONFIG`。
+    4. Environment variable `CHINESE_CALENDAR_CONFIG`.
 
-       Set it before starting the JVM (PowerShell).<br>
-       在启动 JVM 前设置（PowerShell）。
+       Set it before starting the JVM (PowerShell).
 
        ```powershell
        $env:CHINESE_CALENDAR_CONFIG = "my-calendar.properties"
        ```
 
-    5. `chinese-calendar-config.properties` in the JVM working directory.<br>
-       JVM 工作目录下的同名文件。
+    5. `chinese-calendar-config.properties` in the JVM working directory.
 
-       Run in the JVM working directory (PowerShell).<br>
-       在 JVM 工作目录中执行（PowerShell）。
+       Run in the JVM working directory (PowerShell).
 
        ```powershell
        Copy-Item .\my-calendar.properties .\chinese-calendar-config.properties
        ```
 
-    6. Bundled `chinese-calendar-config.properties` resource.<br>
-       JAR 内置的同名资源。
+    6. Bundled `chinese-calendar-config.properties` resource.
 
-       Replace the bundled configuration before building (PowerShell).<br>
-       构建前替换内置配置（PowerShell）。
+       Replace the bundled configuration before building (PowerShell).
 
        ```powershell
        Copy-Item .\my-calendar.properties .\src\main\resources\chinese-calendar-config.properties
@@ -162,31 +170,24 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
 
   </details>
 
-### Planned Features 计划实现
+### Planned Features
 
-- The 24 solar terms  
-  二十四节气
-- Sexagenary cycle dating  
-  干支纪年
-- Chinese zodiac signs  
-  生肖
-- Formatting and localized text for calendar dates  
-  农历日期格式化和本地化文本
+- The 24 solar terms
+- Sexagenary cycle dating
+- Chinese zodiac signs
+- Formatting and localized text for calendar dates
 
-## Default data sources 默认数据来源
+## Default data sources
 
-1. *Calendars for 1900–2025* and *Calendar Data for 2026*, published by the Purple Mountain Observatory.  
-   紫金山天文台 《1900—2025年日历》、《2026年日历资料》。
+1. *Calendars for 1900–2025* and *Calendar Data for 2026*, published by the Purple Mountain Observatory.
 2. The 2027–2100 portion of the *Gregorian-Lunar Calendar Conversion Table*, published by the
    Hong Kong Observatory.
-   香港天文台 《公历与农历日期对照表》(2027 - 2100 年部分)
 
-## Localization data source 本地化数据来源
+## Localization data source
 
-Localization data is sourced from **Unicode CLDR 49**.<br>
-本地化数据来自 **Unicode CLDR 49**。
+Localization data is sourced from **Unicode CLDR 49**.
 
-## Requirements 依赖环境
+## Requirements
 
 - JDK 25
 - Maven 3.9.x
