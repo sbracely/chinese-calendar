@@ -106,11 +106,12 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
         if (epochDay < Integer.MIN_VALUE || epochDay > Integer.MAX_VALUE) {
             throw new DateTimeException("Date is out of range for Chinese calendar: " + epochDay);
         }
-        int[] chineseDateInfo = ChineseChronology.INSTANCE.getChineseDateInfo((int) epochDay);
-        this.prolepticYear = chineseDateInfo[0];
-        this.monthOfYear = chineseDateInfo[1];
-        this.dayOfMonth = chineseDateInfo[2];
-        this.leapMonth = chineseDateInfo[3] != 0;
+        ChineseChronology.ChineseDateInfo chineseDateInfo =
+                ChineseChronology.INSTANCE.getChineseDateInfo((int) epochDay);
+        this.prolepticYear = chineseDateInfo.prolepticYear();
+        this.monthOfYear = chineseDateInfo.monthOfYear();
+        this.leapMonth = chineseDateInfo.leapMonth();
+        this.dayOfMonth = chineseDateInfo.dayOfMonth();
     }
 
     //-----------------------------------------------------------------------

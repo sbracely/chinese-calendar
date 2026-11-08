@@ -922,12 +922,12 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *
      * @param epochDay the epoch day to convert
      *                 要转换的纪元天数
-     * @return an array containing year, month, day, and leap-month flag in that order
-     *         按顺序包含年份、月份、日期和闰月标志的数组
+     * @return the Chinese date information
+     *         农历日期信息
      * @throws DateTimeException if the epoch day is outside the supported range
      *                           如果纪元天数超出支持范围，则抛出此异常
      */
-    int[] getChineseDateInfo(int epochDay) {
+    ChineseDateInfo getChineseDateInfo(int epochDay) {
         ChineseCalendarData data = calendarData();
         if (epochDay < data.minimumEpochDay() || epochDay > data.maximumEpochDay()) {
             throw new DateTimeException("Date is out of range for Chinese calendar: " + epochDay);
@@ -940,12 +940,23 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         int day = data.monthStartEpochDayAt(epochMonth);
         int date = epochDay - day;
 
-        int[] dateInfo = new int[4];
-        dateInfo[0] = year;
-        dateInfo[1] = month;
-        dateInfo[2] = date + 1;
-        dateInfo[3] = leapMonth ? 1 : 0;
-        return dateInfo;
+        return new ChineseDateInfo(year, month, leapMonth, date + 1);
+    }
+
+    /**
+     * The Chinese date fields corresponding to an epoch day.
+     * 与纪元天数对应的农历日期字段。
+     *
+     * @param prolepticYear the Chinese proleptic year
+     *                      农历历法年份
+     * @param monthOfYear the month number, without distinguishing regular and leap months
+     *                    月份编号，不区分普通月与闰月
+     * @param leapMonth whether the month is a leap month
+     *                  月份是否为闰月
+     * @param dayOfMonth the one-based day of the month
+     *                   从一开始计数的月内日期
+     */
+    record ChineseDateInfo(int prolepticYear, int monthOfYear, boolean leapMonth, int dayOfMonth) {
     }
 
     /**
