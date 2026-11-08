@@ -15,6 +15,10 @@ import java.time.LocalTime;
 import java.time.Period;
 import java.time.chrono.ChronoPeriod;
 import java.time.chrono.HijrahChronology;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.Temporal;
+import java.time.temporal.TemporalAmount;
+import java.time.temporal.TemporalUnit;
 import java.time.temporal.UnsupportedTemporalTypeException;
 import java.util.List;
 import java.util.function.LongFunction;
@@ -109,6 +113,60 @@ class ChinesePeriodTest {
         assertThat(ChinesePeriod.between(start, start).isZero()).isTrue();
         assertThatThrownBy(() -> ChinesePeriod.between(null, end)).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> ChinesePeriod.between(start, null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void extractsChinesePeriodComponentsWithoutNormalization() {
+        ChinesePeriod period = ChinesePeriod.of(-1, 13, -3);
+        assertThat(ChinesePeriod.from(period)).isSameAs(period);
+        assertThat(ChinesePeriod.from(new UnitAmount(YEARS, -2))).isEqualTo(ChinesePeriod.ofYears(-2));
+        assertThat(ChinesePeriod.from(new UnitAmount(MONTHS, 13))).isEqualTo(ChinesePeriod.ofMonths(13));
+        assertThat(ChinesePeriod.from(new UnitAmount(DAYS, -3))).isEqualTo(ChinesePeriod.ofDays(-3));
+        assertThat(ChinesePeriod.from(new UnitAmount(DAYS, 0))).isSameAs(ChinesePeriod.ZERO);
+    }
+
+    @Test
+    void rejectsIncompatibleAndOverflowingAmountsDuringConversion() {
+        for (TemporalAmount amount : new TemporalAmount[]{
+                Period.ofYears(1), Period.ofDays(1), Period.ZERO,
+                HijrahChronology.INSTANCE.period(1, 0, 0), Duration.ofDays(1),
+                new UnitAmount(WEEKS, 1)}) {
+            assertThatThrownBy(() -> ChinesePeriod.from(amount)).isInstanceOf(DateTimeException.class);
+        }
+        for (TemporalUnit unit : new TemporalUnit[]{YEARS, MONTHS, DAYS}) {
+            for (long value : new long[]{(long) Integer.MIN_VALUE - 1, (long) Integer.MAX_VALUE + 1}) {
+                assertThatThrownBy(() -> ChinesePeriod.from(new UnitAmount(unit, value)))
+                        .isInstanceOf(ArithmeticException.class);
+            }
+        }
+        assertThatThrownBy(() -> ChinesePeriod.from(null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void parsesFormattedPeriodsAndUnprefixedNumericComponents() {
+        for (ChinesePeriod period : new ChinesePeriod[]{
+                ChinesePeriod.ZERO, ChinesePeriod.of(-1, 13, -3), ChinesePeriod.ofYears(2),
+                ChinesePeriod.of(Integer.MIN_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE)}) {
+            assertThat(ChinesePeriod.parse(period.toString())).isEqualTo(period);
+        }
+        assertThat(ChinesePeriod.parse("P1Y13M-3D")).isEqualTo(ChinesePeriod.of(1, 13, -3));
+        assertThat(ChinesePeriod.parse("Chinese -p1y2m3d")).isEqualTo(ChinesePeriod.of(-1, -2, -3));
+        assertThat(ChinesePeriod.parse(new StringBuilder("p2w3d"))).isEqualTo(ChinesePeriod.ofDays(17));
+        assertThat(ChinesePeriod.parse("Chinese P0D")).isSameAs(ChinesePeriod.ZERO);
+        ChineseDate start = CHRONOLOGY.date(2023, 1, 1);
+        assertThat(start.plus(ChinesePeriod.parse("P13M"))).isEqualTo(start.plusYears(1));
+    }
+
+    @Test
+    void rejectsInvalidPeriodTextAndPreservesTheOriginalInputInErrors() {
+        for (String text : new String[]{
+                "", "Chinese ", "P", "ISO P1Y", "Japanese P1Y", "Chinese P1D2M",
+                "P2147483648Y", "Chinese P2147483647W", "P306783378W2D", "-P-2147483648Y"}) {
+            assertThatThrownBy(() -> ChinesePeriod.parse(text))
+                    .isInstanceOfSatisfying(DateTimeParseException.class,
+                            exception -> assertThat(exception.getParsedString()).isEqualTo(text));
+        }
+        assertThatThrownBy(() -> ChinesePeriod.parse(null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -411,6 +469,31 @@ class ChinesePeriodTest {
                     assertThat(start.plus(start.until(end))).as("%s to %s", start, end).isEqualTo(end);
                 }
             }
+        }
+    }
+
+    private record UnitAmount(TemporalUnit unit, long value) implements TemporalAmount {
+        @Override
+        public long get(TemporalUnit unit) {
+            if (!this.unit.equals(unit)) {
+                throw new UnsupportedTemporalTypeException("Unsupported unit: " + unit);
+            }
+            return value;
+        }
+
+        @Override
+        public List<TemporalUnit> getUnits() {
+            return List.of(unit);
+        }
+
+        @Override
+        public Temporal addTo(Temporal temporal) {
+            return temporal.plus(value, unit);
+        }
+
+        @Override
+        public Temporal subtractFrom(Temporal temporal) {
+            return temporal.minus(value, unit);
         }
     }
 }

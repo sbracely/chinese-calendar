@@ -5,8 +5,10 @@ import java.io.Serial;
 import java.io.InvalidObjectException;
 import java.io.ObjectStreamException;
 import java.time.DateTimeException;
+import java.time.Period;
 import java.time.chrono.ChronoPeriod;
 import java.time.chrono.Chronology;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.*;
 import java.util.List;
 import java.util.Objects;
@@ -120,6 +122,84 @@ public record ChinesePeriod(int years, int months, int days)
      */
     public static ChinesePeriod ofDays(int days) {
         return of(0, 0, days);
+    }
+
+    /**
+     * Extracts year, actual-month, and day components without calendar conversion.
+     * 提取年、实际月和日分量，不进行历法转换。
+     * <p>
+     * A {@link ChronoPeriod} must use the Chinese chronology. Other amounts must contain
+     * only years, months, or days, whose values are interpreted as Chinese-calendar components.
+     * {@link ChronoPeriod} 必须使用农历；其他时间量只能包含年、月或日，数值按农历分量解释。
+     *
+     * @param amount the amount to extract
+     *               要提取的时间量
+     * @return the Chinese period, or the input if it is already a Chinese period
+     *         农历期间，输入已为农历期间时返回输入本身
+     * @throws NullPointerException if the amount is null
+     *                              如果时间量为空
+     * @throws DateTimeException if the chronology or units are incompatible
+     *                           如果历法或单位不兼容
+     * @throws ArithmeticException if a component exceeds the int range
+     *                             如果分量超出 int 范围
+     */
+    public static ChinesePeriod from(TemporalAmount amount) {
+        Objects.requireNonNull(amount, "amount");
+        if (amount instanceof ChinesePeriod period) {
+            return period;
+        }
+        if (amount instanceof ChronoPeriod period
+                && !ChineseChronology.INSTANCE.equals(period.getChronology())) {
+            throw new DateTimeException("Chronology mismatch, expected: " + ChineseChronology.INSTANCE.getId()
+                    + ", actual: " + period.getChronology().getId());
+        }
+        int years = 0;
+        int months = 0;
+        int days = 0;
+        for (TemporalUnit unit : amount.getUnits()) {
+            switch (unit) {
+                case ChronoUnit.YEARS -> years = Math.toIntExact(amount.get(unit));
+                case ChronoUnit.MONTHS -> months = Math.toIntExact(amount.get(unit));
+                case ChronoUnit.DAYS -> days = Math.toIntExact(amount.get(unit));
+                case null, default -> throw new DateTimeException("Unsupported unit: " + unit);
+            }
+        }
+        return of(years, months, days);
+    }
+
+    /**
+     * Parses the text produced by {@link #toString()}, also accepting an unprefixed period.
+     * 解析 {@link #toString()} 生成的文本，也接受不带历法前缀的期间文本。
+     * <p>
+     * The optional prefix is {@code Chinese }. The remaining text follows {@link Period#parse},
+     * including signed components, case-insensitive unit letters, and weeks converted to days.
+     * Only the numeric components are parsed; no ISO-to-Chinese calendar conversion is performed.
+     * 可选前缀为 {@code Chinese }；其余文本遵循 {@link Period#parse} 的语法，
+     * 支持带符号的分量、大小写单位字母，并将周换算为日。仅解析数值，不进行公历到农历的转换。
+     *
+     * @param text the period text
+     *             期间文本
+     * @return the parsed Chinese period
+     *         解析后的农历期间
+     * @throws NullPointerException if the text is null
+     *                              如果文本为空
+     * @throws DateTimeParseException if the text is invalid or a component overflows
+     *                               如果文本无效或分量溢出
+     */
+    public static ChinesePeriod parse(CharSequence text) {
+        Objects.requireNonNull(text, "text");
+        String input = text.toString();
+        String prefix = ChineseChronology.INSTANCE.getId() + " ";
+        int offset = input.startsWith(prefix) ? prefix.length() : 0;
+        try {
+            Period parsed = Period.parse(input.substring(offset));
+            return of(parsed.getYears(), parsed.getMonths(), parsed.getDays());
+        } catch (DateTimeParseException exception) {
+            throw new DateTimeParseException("Text cannot be parsed to a ChinesePeriod", input,
+                    offset + exception.getErrorIndex(), exception);
+        } catch (ArithmeticException exception) {
+            throw new DateTimeParseException("Text cannot be parsed to a ChinesePeriod", input, offset, exception);
+        }
     }
 
     /**
@@ -485,6 +565,9 @@ public record ChinesePeriod(int years, int months, int days)
     /**
      * Returns the chronology ID followed by the signed period components.
      * 返回历法 ID 及带符号的期间分量。
+     * <p>
+     * The result can be parsed by {@link #parse(CharSequence)}.
+     * 结果可由 {@link #parse(CharSequence)} 解析。
      *
      * @return the period text
      *         期间文本
