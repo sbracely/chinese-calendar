@@ -108,7 +108,9 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
        ```java
        Properties properties = new Properties();
        properties.setProperty("id", "Chinese");
-       ...
+       properties.setProperty("type", "chinese");
+       properties.setProperty("iso-start", "1900-01-31");
+       properties.setProperty("month-length.1900", "29 30 29 29 30 29 30 30 leap29 30 30 29 30");
        ChineseCalendarConfigLoader.configure(properties);
        ```
 
