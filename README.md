@@ -45,11 +45,13 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
 
   ```java
   ChineseDate chineseDate = ChineseDate.now();
-  ChronoPeriod period = new ChinesePeriod(1, 2, 3);
-  long monthComponent = period.get(ChronoUnit.MONTHS);
+  ChinesePeriod period = ChinesePeriod.of(1, 2, 3);
+  int monthComponent = period.months();
   ChineseDate result = chineseDate.plus(period);
   ChineseDate earlier = chineseDate.minus(period);
-  ChronoPeriod elapsed = chineseDate.until(result);
+  ChinesePeriod elapsed = chineseDate.until(result);
+  ChinesePeriod between = ChinesePeriod.between(chineseDate, result);
+  ChinesePeriod parsed = ChinesePeriod.parse(period.toString());
   ```
 
 - Automatic `Chronology` discovery via SPI and lookup by ID or calendar type<br>
