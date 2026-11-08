@@ -1,11 +1,13 @@
 package io.github.sbracely.chinese.calendar.spi;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Optional;
+import java.util.Properties;
 
 /**
- * Supplies Chinese calendar configuration properties.
- * 提供农历配置属性。
+ * Supplies a Chinese calendar configuration path or properties.
+ * 提供农历配置文件路径或属性。
  * <p>
  * Providers are ordered by ascending {@link #getOrder()}, after explicit configuration
  * but before system-property, environment-variable, working-directory, and classpath sources.
@@ -22,17 +24,39 @@ public interface ChineseCalendarConfigProvider {
      * @return provider order
      *         提供者顺序
      */
-    int getOrder();
+    default int getOrder() {
+        return 0;
+    }
 
     /**
-     * Finds configuration data, or returns empty if this provider does not apply. Once selected,
-     * invalid data causes initialization to fail without fallback.
-     * 查找配置数据；来源不适用时返回空。数据一旦选中，若内容无效，初始化会失败且不会回退。
+     * Provides a configuration path, or empty if none is available.
+     * Relative paths use the JVM working directory. Override this method or {@link #getProperties()},
+     * not both with present values. Selected sources are loaded without fallback on failure.
+     * 提供配置文件路径，没有可用路径时返回空；相对路径基于 JVM 工作目录。
+     * 重写此方法或 {@link #getProperties()}，不能同时返回非空来源；选中来源加载失败时不回退。
      *
-     * @return the configuration data, if available
-     *         找到的配置数据
-     * @throws IOException if loading or determining whether configuration is available fails
-     *                     如果加载配置或判断提供者是否适用时失败
+     * @return the configuration path, if available
+     *         可用的配置文件路径
+     * @throws IOException if determining the source fails
+     *                     如果确定配置来源时失败
      */
-    Optional<ChineseCalendarConfigData> findConfig() throws IOException;
+    default Optional<Path> getPath() throws IOException {
+        return Optional.empty();
+    }
+
+    /**
+     * Provides configuration properties, or empty if none are available.
+     * Effective string properties, including defaults, are copied by the loader.
+     * Returning both properties and a path is rejected; returning neither skips this provider.
+     * 提供配置属性，没有可用属性时返回空；加载器复制包含默认值的有效字符串属性。
+     * 同时提供属性和路径会报错，两者均为空时跳过此提供者。
+     *
+     * @return the configuration properties, if available
+     *         可用的配置属性
+     * @throws IOException if determining the source fails
+     *                     如果确定配置来源时失败
+     */
+    default Optional<Properties> getProperties() throws IOException {
+        return Optional.empty();
+    }
 }

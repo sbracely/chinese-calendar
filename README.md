@@ -116,23 +116,53 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
 
     2. `ChineseCalendarConfigProvider` implementations registered through
        `META-INF/services/io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider`, ordered by
-       `getOrder()`.
+       `getOrder()` (default: `0`). Override `getPath()` or `getProperties()` to supply a source;
+       the loader handles reading and copying the configuration. Both empty skips the provider;
+       supplying both sources is rejected.
 
        ```java
        package example;
   
        public final class MyCalendarConfigProvider implements ChineseCalendarConfigProvider {
            @Override
-           public int getOrder() {
-               return 0;
-           }
-  
-           @Override
-           public Optional<ChineseCalendarConfigData> findConfig() throws IOException {
-               return Optional.of(ChineseCalendarConfigData.fromPath(Path.of("my-calendar.properties")));
+           public Optional<Path> getPath() {
+               return Optional.of(Path.of("my-calendar.properties"));
            }
        }
        ```
+
+       For in-memory configuration, use this alternative provider implementation.
+       It supplies only lunar year 1900 and requires the same service registration:
+
+       ```java
+       package example;
+
+       public final class MyCalendarConfigProvider implements ChineseCalendarConfigProvider {
+           @Override
+           public Optional<Properties> getProperties() {
+               Properties properties = new Properties();
+               properties.setProperty("id", "Chinese");
+               properties.setProperty("type", "chinese");
+               properties.setProperty("iso-start", "1900-01-31");
+               properties.setProperty("month-length.1900",
+                       "29 30 29 29 30 29 30 30 leap29 30 30 29 30");
+               return Optional.of(properties);
+           }
+       }
+       ```
+
+       When registering multiple providers, assign each a distinct order. Lower values have
+       higher priority; the default is `0`, and duplicate orders are rejected.
+       For example, add this method to a provider:
+
+       ```java
+       @Override
+       public int getOrder() {
+           return 100;
+       }
+       ```
+
+       A provider with order `100` is evaluated before one with order `200`.
 
        Add the provider name to the service registration file.
 

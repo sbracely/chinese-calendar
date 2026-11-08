@@ -2,7 +2,6 @@ package io.github.sbracely.chinese.calendar;
 
 import io.github.sbracely.chinese.calendar.internal.ChineseCalendarData;
 import io.github.sbracely.chinese.calendar.internal.ChineseCalendarDataParser;
-import io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigData;
 import io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider;
 
 import java.io.*;

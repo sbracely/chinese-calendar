@@ -113,7 +113,9 @@
        ChineseCalendarConfigLoader.configure(properties);
        ```
 
-    2. 通过 Java SPI 注册的 `ChineseCalendarConfigProvider`，按 `getOrder()` 排序。
+    2. 通过 Java SPI 注册的 `ChineseCalendarConfigProvider`，按 `getOrder()` 排序（默认为 `0`）。
+       重写 `getPath()` 或 `getProperties()` 提供来源，由加载器读取或复制配置。
+       两者均为空时跳过此提供者，同时提供两种来源则报错。
        服务注册文件为 `META-INF/services/io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider`。
 
        ```java
@@ -121,16 +123,42 @@
 
        public final class MyCalendarConfigProvider implements ChineseCalendarConfigProvider {
            @Override
-           public int getOrder() {
-               return 0;
-           }
-
-           @Override
-           public Optional<ChineseCalendarConfigData> findConfig() throws IOException {
-               return Optional.of(ChineseCalendarConfigData.fromPath(Path.of("my-calendar.properties")));
+           public Optional<Path> getPath() {
+               return Optional.of(Path.of("my-calendar.properties"));
            }
        }
        ```
+
+       内存配置使用以下替代实现，仅提供农历 1900 年的数据，同样需要服务注册：
+
+       ```java
+       package example;
+
+       public final class MyCalendarConfigProvider implements ChineseCalendarConfigProvider {
+           @Override
+           public Optional<Properties> getProperties() {
+               Properties properties = new Properties();
+               properties.setProperty("id", "Chinese");
+               properties.setProperty("type", "chinese");
+               properties.setProperty("iso-start", "1900-01-31");
+               properties.setProperty("month-length.1900",
+                       "29 30 29 29 30 29 30 30 leap29 30 30 29 30");
+               return Optional.of(properties);
+           }
+       }
+       ```
+
+       注册多个提供者时，应为每个提供者设置不同的顺序。数值越小优先级越高，
+       默认为 `0`，顺序重复会报错。例如，在提供者类中添加：
+
+       ```java
+       @Override
+       public int getOrder() {
+           return 100;
+       }
+       ```
+
+       顺序为 `100` 的提供者会先于顺序为 `200` 的提供者被查询。
 
        在上述服务注册文件中写入提供者类名。
 

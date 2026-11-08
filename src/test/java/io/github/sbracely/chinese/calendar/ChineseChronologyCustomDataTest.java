@@ -1,6 +1,5 @@
 package io.github.sbracely.chinese.calendar;
 
-import io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigData;
 import io.github.sbracely.chinese.calendar.spi.TestConfigProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -110,6 +109,25 @@ class ChineseChronologyCustomDataTest {
     @Test
     void spiProviderTakesPrecedenceOverSystemProperty() throws Exception {
         runWithSpiProvider("shared", fixture("common-only").toString(), fixture("custom").toString());
+    }
+
+    @Test
+    void spiPropertiesProviderUsesDefaultOrderAndCopiesInheritedProperties() throws Exception {
+        registerProviders(TestConfigProvider.PropertiesProvider.class);
+        runWithSpiProvider("spi-properties", fixture("common-only").toString(), fixture("custom").toString());
+    }
+
+    @Test
+    void rejectsSpiProviderSupplyingBothSourcesBeforeLoadingEither() throws Exception {
+        registerProviders(TestConfigProvider.BothSourcesProvider.class);
+        runWithSpiProvider("spi-both", fixture("common-only").toString(),
+                directory.resolve("missing.properties").toString());
+    }
+
+    @Test
+    void selectedSpiPathFailureDoesNotFallBackToSystemProperty() throws Exception {
+        runWithSpiProvider("invalid", fixture("common-only").toString(),
+                directory.resolve("missing.properties").toString());
     }
 
     @Test
@@ -279,6 +297,21 @@ class ChineseChronologyCustomDataTest {
         String config = System.getProperty("chinese.calendar.config");
         ChineseChronology chronology;
         switch (args[0]) {
+            case "spi-properties" -> {
+                chronology = ChineseChronology.INSTANCE;
+                assertThat(chronology.date(2023, 1, 1).toEpochDay())
+                        .isEqualTo(LocalDate.of(2023, 1, 23).toEpochDay());
+                assertThat(new TestConfigProvider.PropertiesProvider().getOrder()).isZero();
+                TestConfigProvider.PropertiesProvider.supplied.setProperty("iso-start", "invalid");
+                assertThat(chronology.date(2023, 1, 1).toEpochDay())
+                        .isEqualTo(LocalDate.of(2023, 1, 23).toEpochDay());
+            }
+            case "spi-both" -> {
+                Throwable failure = catchThrowable(() -> ChineseChronology.INSTANCE.date(2023, 1, 1));
+                assertThat(failure).isInstanceOf(DateTimeException.class)
+                        .hasCauseInstanceOf(IllegalStateException.class);
+                assertThat(failure.getCause()).hasMessageContaining("supplies both path and properties");
+            }
             case "spi-order", "spi-empty" -> {
                 boolean empty = args[0].equals("spi-empty");
                 System.setProperty("test.chinese.calendar.config.early.empty", Boolean.toString(empty));

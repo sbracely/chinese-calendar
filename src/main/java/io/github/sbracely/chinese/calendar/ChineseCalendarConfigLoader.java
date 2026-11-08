@@ -1,6 +1,5 @@
 package io.github.sbracely.chinese.calendar;
 
-import io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigData;
 import io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider;
 
 import java.io.IOException;
@@ -134,8 +133,8 @@ public final class ChineseCalendarConfigLoader {
      *         选中的配置数据
      * @throws IOException if a source cannot be evaluated
      *                     如果配置来源无法评估
-     * @throws IllegalStateException if multiple SPI providers have the same order
-     *                               如果多个 SPI 提供者具有相同顺序
+     * @throws IllegalStateException if SPI providers have duplicate orders or a provider supplies both sources
+     *                               如果 SPI 提供者顺序重复或某个提供者同时提供两种来源
      * @throws IllegalArgumentException if a selected external path is blank or invalid
      *                                  如果选中的外部路径为空白或无效
      */
@@ -159,9 +158,17 @@ public final class ChineseCalendarConfigLoader {
             }
         }
         for (ChineseCalendarConfigProvider provider : providers.values()) {
-            Optional<ChineseCalendarConfigData> configData = provider.findConfig();
-            if (configData.isPresent()) {
-                return configData.get();
+            Optional<Path> path = Objects.requireNonNull(provider.getPath(), "provider path");
+            Optional<Properties> properties = Objects.requireNonNull(provider.getProperties(), "provider properties");
+            if (path.isPresent() && properties.isPresent()) {
+                throw new IllegalStateException("Configuration provider supplies both path and properties: "
+                        + provider.getClass().getName());
+            }
+            if (path.isPresent()) {
+                return pathConfig(path.get().toString());
+            }
+            if (properties.isPresent()) {
+                return new ChineseCalendarConfigData("SPI:" + provider.getClass().getName(), properties.get());
             }
         }
 

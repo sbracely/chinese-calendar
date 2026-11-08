@@ -1,4 +1,4 @@
-package io.github.sbracely.chinese.calendar.spi;
+package io.github.sbracely.chinese.calendar;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,7 +13,7 @@ import java.util.Properties;
  * 配置来源描述及其字符串属性的防御性快照。
  * 保存包含默认值的有效字符串属性，返回的属性也会复制。
  */
-public final class ChineseCalendarConfigData {
+final class ChineseCalendarConfigData {
 
     /**
      * The non-null source description used in initialization diagnostics.
@@ -37,7 +37,7 @@ public final class ChineseCalendarConfigData {
      * @throws NullPointerException if the description or properties are {@code null}
      *                              如果描述或属性为 {@code null}
      */
-    public ChineseCalendarConfigData(String description, Properties properties) {
+    ChineseCalendarConfigData(String description, Properties properties) {
         this.description = Objects.requireNonNull(description, "description");
         this.properties = new Properties();
         Objects.requireNonNull(properties, "properties");
@@ -63,7 +63,7 @@ public final class ChineseCalendarConfigData {
      * @throws IllegalArgumentException if the file contains a malformed Unicode escape
      *                                  如果文件包含格式错误的 Unicode 转义
      */
-    public static ChineseCalendarConfigData fromPath(Path path) throws IOException {
+    static ChineseCalendarConfigData fromPath(Path path) throws IOException {
         Path absolutePath = Objects.requireNonNull(path, "path").toAbsolutePath().normalize();
         Properties properties = new Properties();
         try (InputStream input = Files.newInputStream(absolutePath)) {
@@ -79,7 +79,7 @@ public final class ChineseCalendarConfigData {
      * @return source description
      *         来源描述
      */
-    public String description() {
+    String description() {
         return description;
     }
 
@@ -90,7 +90,7 @@ public final class ChineseCalendarConfigData {
      * @return a copy of the properties
      *         属性副本
      */
-    public Properties properties() {
+    Properties properties() {
         Properties copy = new Properties();
         copy.putAll(properties);
         return copy;
