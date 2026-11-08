@@ -168,8 +168,8 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     }
 
     //-----------------------------------------------------------------------
-    // Package-private factory methods
-    // 包级工厂方法
+    // Factory methods
+    // 工厂方法
     //-----------------------------------------------------------------------
 
     /**
@@ -187,7 +187,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      * @throws DateTimeException if the date is invalid or outside the supported range
      *                           如果日期无效或超出支持范围
      */
-    static ChineseDate of(int prolepticYear, int monthOfYear, int dayOfMonth) {
+    public static ChineseDate of(int prolepticYear, int monthOfYear, int dayOfMonth) {
         return of(prolepticYear, monthOfYear, false, dayOfMonth);
     }
 
@@ -208,7 +208,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      * @throws DateTimeException if the date or leap-month flag is invalid or outside the supported range
      *                           如果日期或闰月标志无效，或超出支持范围
      */
-    static ChineseDate of(int prolepticYear, int monthOfYear, boolean leapMonth, int dayOfMonth) {
+    public static ChineseDate of(int prolepticYear, int monthOfYear, boolean leapMonth, int dayOfMonth) {
         return new ChineseDate(prolepticYear, monthOfYear, leapMonth, dayOfMonth);
     }
 

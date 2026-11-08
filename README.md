@@ -30,8 +30,9 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
   ChineseDate firstDayOfMonth = chineseDate.with(ChronoField.DAY_OF_MONTH, 1);
   long daysUntilNextMonth = chineseDate.until(nextMonth, ChronoUnit.DAYS);
 
-  ChineseDate leapMonthDate = ChineseChronology.INSTANCE.date(2023, 2, true, 1);
+  ChineseDate leapMonthDate = ChineseDate.of(2023, 2, true, 1);
   boolean leapMonth = leapMonthDate.isLeapMonth();
+  boolean leapYear = leapMonthDate.isLeapYear();
   ChineseDate followingMonth = leapMonthDate.plusMonths(1);
   ChineseDate followingYear = leapMonthDate.plusYears(1);
   ChineseDate followingDay = leapMonthDate.plusDays(1);
