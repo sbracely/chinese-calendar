@@ -126,16 +126,59 @@ class ChinesePeriodTest {
     }
 
     @Test
+    void acceptsOtherChineseChronoPeriodImplementations() {
+        ChinesePeriod components = ChinesePeriod.of(-2, 13, -4);
+        ChronoPeriod other = new OtherChinesePeriod(components);
+        ChinesePeriod period = ChinesePeriod.of(1, -3, 2);
+
+        assertThat(ChinesePeriod.from(other)).isEqualTo(components);
+        assertThat(period.plus(other)).isEqualTo(ChinesePeriod.of(-1, 10, -2));
+        assertThat(period.minus(other)).isEqualTo(ChinesePeriod.of(3, -16, 6));
+    }
+
+    @Test
+    void addsAndSubtractsAmountsAcceptedByFrom() {
+        ChinesePeriod period = ChinesePeriod.of(-1, 13, -3);
+        TemporalAmount years = new UnitAmount(YEARS, 2);
+        TemporalAmount months = new UnitAmount(MONTHS, -4);
+        TemporalAmount days = new UnitAmount(DAYS, 5);
+
+        assertThat(period.plus(years)).isEqualTo(ChinesePeriod.of(1, 13, -3));
+        assertThat(period.minus(years)).isEqualTo(ChinesePeriod.of(-3, 13, -3));
+        assertThat(period.plus(months)).isEqualTo(ChinesePeriod.of(-1, 9, -3));
+        assertThat(period.minus(months)).isEqualTo(ChinesePeriod.of(-1, 17, -3));
+        assertThat(period.plus(days)).isEqualTo(ChinesePeriod.of(-1, 13, 2));
+        assertThat(period.minus(days)).isEqualTo(ChinesePeriod.of(-1, 13, -8));
+    }
+
+    @Test
+    void reusesZeroForInternalPeriodCreation() {
+        ChinesePeriod period = ChinesePeriod.of(-1, 13, -3);
+        assertThat(CHRONOLOGY.period(0, 0, 0)).isSameAs(ChinesePeriod.ZERO);
+        assertThat(period.plus(period.negated())).isSameAs(ChinesePeriod.ZERO);
+        assertThat(period.minus(period)).isSameAs(ChinesePeriod.ZERO);
+        assertThat(period.multipliedBy(0)).isSameAs(ChinesePeriod.ZERO);
+        ChineseDate date = CHRONOLOGY.date(2023, 1, 1);
+        assertThat(date.until(date)).isSameAs(ChinesePeriod.ZERO);
+    }
+
+    @Test
     void rejectsIncompatibleAndOverflowingAmountsDuringConversion() {
         for (TemporalAmount amount : new TemporalAmount[]{
                 Period.ofYears(1), Period.ofDays(1), Period.ZERO,
                 HijrahChronology.INSTANCE.period(1, 0, 0), Duration.ofDays(1),
                 new UnitAmount(WEEKS, 1)}) {
             assertThatThrownBy(() -> ChinesePeriod.from(amount)).isInstanceOf(DateTimeException.class);
+            assertThatThrownBy(() -> ChinesePeriod.ZERO.plus(amount)).isInstanceOf(DateTimeException.class);
+            assertThatThrownBy(() -> ChinesePeriod.ZERO.minus(amount)).isInstanceOf(DateTimeException.class);
         }
         for (TemporalUnit unit : new TemporalUnit[]{YEARS, MONTHS, DAYS}) {
             for (long value : new long[]{(long) Integer.MIN_VALUE - 1, (long) Integer.MAX_VALUE + 1}) {
                 assertThatThrownBy(() -> ChinesePeriod.from(new UnitAmount(unit, value)))
+                        .isInstanceOf(ArithmeticException.class);
+                assertThatThrownBy(() -> ChinesePeriod.ZERO.plus(new UnitAmount(unit, value)))
+                        .isInstanceOf(ArithmeticException.class);
+                assertThatThrownBy(() -> ChinesePeriod.ZERO.minus(new UnitAmount(unit, value)))
                         .isInstanceOf(ArithmeticException.class);
             }
         }
@@ -232,19 +275,23 @@ class ChinesePeriodTest {
 
     @Test
     void serializesAndDeserializes() throws Exception {
-        ChinesePeriod period = CHRONOLOGY.period(1, 2, 3);
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        try (ObjectOutputStream output = new ObjectOutputStream(bytes)) {
-            output.writeObject(period);
-        }
+        for (ChinesePeriod period : new ChinesePeriod[]{CHRONOLOGY.period(1, 2, 3), new ChinesePeriod(0, 0, 0)}) {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            try (ObjectOutputStream output = new ObjectOutputStream(bytes)) {
+                output.writeObject(period);
+            }
 
-        ChinesePeriod deserialized;
-        try (ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
-            deserialized = (ChinesePeriod) input.readObject();
-        }
+            ChinesePeriod deserialized;
+            try (ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()))) {
+                deserialized = (ChinesePeriod) input.readObject();
+            }
 
-        assertThat(deserialized).isEqualTo(period);
-        assertThat(deserialized.getChronology()).isSameAs(CHRONOLOGY);
+            assertThat(deserialized).isEqualTo(period);
+            assertThat(deserialized.getChronology()).isSameAs(CHRONOLOGY);
+            if (period.isZero()) {
+                assertThat(deserialized).isSameAs(ChinesePeriod.ZERO);
+            }
+        }
     }
 
     @Test
@@ -469,6 +516,53 @@ class ChinesePeriodTest {
                     assertThat(start.plus(start.until(end))).as("%s to %s", start, end).isEqualTo(end);
                 }
             }
+        }
+    }
+
+    private record OtherChinesePeriod(ChinesePeriod delegate) implements ChronoPeriod {
+        @Override
+        public long get(TemporalUnit unit) {
+            return delegate.get(unit);
+        }
+
+        @Override
+        public List<TemporalUnit> getUnits() {
+            return delegate.getUnits();
+        }
+
+        @Override
+        public ChineseChronology getChronology() {
+            return delegate.getChronology();
+        }
+
+        @Override
+        public ChronoPeriod plus(TemporalAmount amount) {
+            return delegate.plus(amount);
+        }
+
+        @Override
+        public ChronoPeriod minus(TemporalAmount amount) {
+            return delegate.minus(amount);
+        }
+
+        @Override
+        public ChronoPeriod multipliedBy(int scalar) {
+            return delegate.multipliedBy(scalar);
+        }
+
+        @Override
+        public ChronoPeriod normalized() {
+            return this;
+        }
+
+        @Override
+        public Temporal addTo(Temporal temporal) {
+            return delegate.addTo(temporal);
+        }
+
+        @Override
+        public Temporal subtractFrom(Temporal temporal) {
+            return delegate.subtractFrom(temporal);
         }
     }
 

@@ -406,51 +406,51 @@ public record ChinesePeriod(int years, int months, int days)
     }
 
     /**
-     * Adds the components of a period with the same chronology.
-     * 增加相同历法期间的各分量。
+     * Adds components extracted using {@link #from(TemporalAmount)}, without normalization.
+     * 增加通过 {@link #from(TemporalAmount)} 提取的分量，不进行归一化。
      *
-     * @param amount the period to add
-     *               要增加的期间
+     * @param amount the amount to add
+     *               要增加的时间量
      * @return the resulting Chinese period
      *         结果农历期间
      * @throws NullPointerException if the amount is {@code null}
      *                              如果时间量为 {@code null}
-     * @throws DateTimeException if the amount is not a period of the same chronology
-     *                           如果时间量不是相同历法的期间
+     * @throws DateTimeException if the chronology or units are incompatible
+     *                           如果历法或单位不兼容
      * @throws ArithmeticException if a component overflows
      *                             如果分量溢出
      */
     @Override
     public ChinesePeriod plus(TemporalAmount amount) {
-        ChronoPeriod other = validateAmount(amount);
-        return new ChinesePeriod(
-                Math.addExact(years, Math.toIntExact(other.get(YEARS))),
-                Math.addExact(months, Math.toIntExact(other.get(MONTHS))),
-                Math.addExact(days, Math.toIntExact(other.get(DAYS))));
+        ChinesePeriod other = from(amount);
+        return of(
+                Math.addExact(years, other.years),
+                Math.addExact(months, other.months),
+                Math.addExact(days, other.days));
     }
 
     /**
-     * Subtracts the components of a period with the same chronology.
-     * 减去相同历法期间的各分量。
+     * Subtracts components extracted using {@link #from(TemporalAmount)}, without normalization.
+     * 减去通过 {@link #from(TemporalAmount)} 提取的分量，不进行归一化。
      *
-     * @param amount the period to subtract
-     *               要减去的期间
+     * @param amount the amount to subtract
+     *               要减去的时间量
      * @return the resulting Chinese period
      *         结果农历期间
      * @throws NullPointerException if the amount is {@code null}
      *                              如果时间量为 {@code null}
-     * @throws DateTimeException if the amount is not a period of the same chronology
-     *                           如果时间量不是相同历法的期间
+     * @throws DateTimeException if the chronology or units are incompatible
+     *                           如果历法或单位不兼容
      * @throws ArithmeticException if a component overflows
      *                             如果分量溢出
      */
     @Override
     public ChinesePeriod minus(TemporalAmount amount) {
-        ChronoPeriod other = validateAmount(amount);
-        return new ChinesePeriod(
-                Math.subtractExact(years, Math.toIntExact(other.get(YEARS))),
-                Math.subtractExact(months, Math.toIntExact(other.get(MONTHS))),
-                Math.subtractExact(days, Math.toIntExact(other.get(DAYS))));
+        ChinesePeriod other = from(amount);
+        return of(
+                Math.subtractExact(years, other.years),
+                Math.subtractExact(months, other.months),
+                Math.subtractExact(days, other.days));
     }
 
     /**
@@ -469,7 +469,7 @@ public record ChinesePeriod(int years, int months, int days)
         if (isZero() || scalar == 1) {
             return this;
         }
-        return new ChinesePeriod(Math.multiplyExact(years, scalar),
+        return of(Math.multiplyExact(years, scalar),
                 Math.multiplyExact(months, scalar), Math.multiplyExact(days, scalar));
     }
 
@@ -596,31 +596,6 @@ public record ChinesePeriod(int years, int months, int days)
     //-----------------------------------------------------------------------
 
     /**
-     * Validates that an amount is a period of the same chronology.
-     * 校验时间量是否为相同历法的期间。
-     *
-     * @param amount the amount to validate
-     *               要校验的时间量
-     * @return the validated period
-     *         校验后的期间
-     * @throws NullPointerException if the amount is {@code null}
-     *                              如果时间量为 {@code null}
-     * @throws DateTimeException if the amount has an incompatible type or chronology
-     *                           如果时间量的类型或历法不兼容
-     */
-    private ChronoPeriod validateAmount(TemporalAmount amount) {
-        Objects.requireNonNull(amount, "amount");
-        if (!(amount instanceof ChronoPeriod period)) {
-            throw new DateTimeException("Amount must be a ChronoPeriod: " + amount);
-        }
-        if (!getChronology().equals(period.getChronology())) {
-            throw new DateTimeException("Chronology mismatch, expected: " + getChronology().getId()
-                    + ", actual: " + period.getChronology().getId());
-        }
-        return period;
-    }
-
-    /**
      * Checks the target's chronology when one is available.
      * 当目标提供历法时，校验其历法是否匹配。
      *
@@ -682,7 +657,7 @@ public record ChinesePeriod(int years, int months, int days)
             if (chronology == null) {
                 throw new InvalidObjectException("Missing Chinese chronology");
             }
-            return new ChinesePeriod(years, months, days);
+            return of(years, months, days);
         }
     }
 }

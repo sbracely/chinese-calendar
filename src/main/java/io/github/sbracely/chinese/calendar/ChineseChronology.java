@@ -698,7 +698,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      */
     @Override
     public ChinesePeriod period(int years, int months, int days) {
-        return new ChinesePeriod(years, months, days);
+        return ChinesePeriod.of(years, months, days);
     }
 
     //-----------------------------------------------------------------------
