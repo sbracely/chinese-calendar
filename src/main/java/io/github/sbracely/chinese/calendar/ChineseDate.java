@@ -223,7 +223,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      * @throws DateTimeException if the epoch day is outside the supported range
      *                           如果纪元天数超出支持范围
      */
-    static ChineseDate ofEpochDay(long epochDay) {
+    public static ChineseDate ofEpochDay(long epochDay) {
         return new ChineseDate(epochDay);
     }
 
@@ -274,19 +274,30 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      * @return the proleptic year
      *         历法年份
      */
-    int prolepticYear() {
+    public int getYear() {
         return prolepticYear;
     }
 
     /**
-     * Gets the month number, without distinguishing regular and leap months.
-     * 获取月份编号，不区分普通月与同名闰月。
+     * Gets the month number; regular and leap months share the same number.
+     * 获取月份编号；普通月与同名闰月使用相同编号。
      *
-     * @return the one-based month number
-     *         从一开始计数的月份编号
+     * @return the month number from 1 to 12
+     *         1 至 12 的月份编号
      */
-    int monthOfYear() {
+    public int getMonthValue() {
         return monthOfYear;
+    }
+
+    /**
+     * Gets the day of the month.
+     * 获取月内日期。
+     *
+     * @return the one-based day of the month
+     *         从一开始计数的月内日期
+     */
+    public int getDayOfMonth() {
+        return dayOfMonth;
     }
 
     /**

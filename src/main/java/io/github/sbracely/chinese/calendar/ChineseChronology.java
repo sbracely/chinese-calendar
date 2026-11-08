@@ -767,7 +767,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
                     first = first.plusMonths(Math.subtractExact(ordinal, 1));
                     ChineseDate result = resolverStyle == ResolverStyle.LENIENT
                             ? first.plusDays(Math.subtractExact(day, 1))
-                            : date(first.prolepticYear(), first.monthOfYear(), first.isLeapMonth(),
+                            : date(first.getYear(), first.getMonthValue(), first.isLeapMonth(),
                             Math.toIntExact(resolverStyle == ResolverStyle.SMART
                                     ? Math.min(day, first.lengthOfMonth()) : day));
                     fieldValues.remove(ChronoField.YEAR);
@@ -1257,14 +1257,14 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     private long monthIndex(ChineseCalendarData data, ChineseDate date) {
         // The epoch-month table has padding slots for common years; they are not actual months.
         // 纪元月份表中平年的填充槽位不属于实际月份。
-        long months = (long) (date.prolepticYear() - data.minimumYear()) * 12;
+        long months = (long) (date.getYear() - data.minimumYear()) * 12;
         for (int leapYear : data.leapMonthByYear().keySet()) {
-            if (leapYear < date.prolepticYear()) {
+            if (leapYear < date.getYear()) {
                 months++;
             }
         }
         return months + chineseYearMonthToEpochMonth(
-                data, date.prolepticYear(), date.monthOfYear(), date.isLeapMonth());
+                data, date.getYear(), date.getMonthValue(), date.isLeapMonth());
     }
 
     //-----------------------------------------------------------------------

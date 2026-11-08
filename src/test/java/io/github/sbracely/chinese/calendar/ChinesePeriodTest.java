@@ -485,7 +485,7 @@ class ChinesePeriodTest {
                     assertThat(start.plus(period.normalized())).isEqualTo(end);
                 }
             }
-            if (month.prolepticYear() == 2099 && month.monthOfYear() == 12) {
+            if (month.getYear() == 2099 && month.getMonthValue() == 12) {
                 break;
             }
             ChineseDate next = month.plusMonths(1);

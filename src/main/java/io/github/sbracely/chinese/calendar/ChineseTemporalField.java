@@ -180,7 +180,7 @@ public enum ChineseTemporalField implements TemporalField {
         if (!(temporal instanceof ChineseDate date)) {
             throw new UnsupportedTemporalTypeException("Unsupported field: " + this);
         }
-        int year = date.prolepticYear();
+        int year = date.getYear();
         return switch (this) {
             case IS_LEAP_MONTH -> ValueRange.of(0, date.getChronology().isLeapYear(year) ? 1 : 0);
             case MONTH_AS_ORDINAL_OF_YEAR ->
