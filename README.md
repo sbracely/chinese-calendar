@@ -1,53 +1,58 @@
 # Chinese Calendar 农历
 
-A Chinese calendar library integrated with Java's Date-Time API (`java.time.chrono`),
+A Chinese calendar library built on Java's Date-Time API (`java.time.chrono`),
 with a default data range from January 31, 1900 to February 8, 2100 (Gregorian calendar).  
-与 Java 日期时间 API（`java.time.chrono`）集成的中国农历库。默认数据范围：公元 1900 年农历庚子年正月初一至公元 2099
+基于 Java 日期时间 API（`java.time.chrono`）实现的中国农历库。默认数据范围：公元 1900 年农历庚子年正月初一至公元 2099
 年农历己未年腊月三十。
 
 ## Features 功能
 
 ### Implemented 已实现
 
-- Conversion between Gregorian calendar dates and Chinese calendar dates  
-  公历与农历相互转换
+- Java Date-Time API support<br>
+  Java Date-Time API 支持
+
+  **`ChronoLocalDate`**
 
   ```java
   ChineseDate chineseDate = ChineseDate.now();
   LocalDate gregorianDate = LocalDate.from(chineseDate);
   ChineseDate convertedDate = ChineseDate.from(gregorianDate);
+  
+  int year = chineseDate.get(ChronoField.YEAR);
+  int lengthOfMonth = chineseDate.lengthOfMonth();
+  int lengthOfYear = chineseDate.lengthOfYear();
+  long epochDay = chineseDate.toEpochDay();
+  
+  ChineseDate nextMonth = chineseDate.plus(1, ChronoUnit.MONTHS);
+  ChineseDate previousDay = chineseDate.plus(-1, ChronoUnit.DAYS);
+  ChineseDate firstDayOfMonth = chineseDate.with(ChronoField.DAY_OF_MONTH, 1);
+  long daysUntilNextMonth = chineseDate.until(nextMonth, ChronoUnit.DAYS);
   ```
 
-- Calculation of month and year lengths  
-  月份、年份长度计算
+  **`Chronology`**
 
   ```java
-  ChineseDate date = ChineseDate.now();
-  int daysInMonth = date.lengthOfMonth();
-  int daysInYear = date.lengthOfYear();
+  ChineseChronology chineseChronology = ChineseChronology.INSTANCE;
+  ChineseDate date = chineseChronology.dateNow();
+  LocalDate gregorianDate = LocalDate.now();
+  ChineseDate fromIsoDate = chineseChronology.date(gregorianDate);
+  ChineseDate fromEpochDay = chineseChronology.dateEpochDay(gregorianDate.toEpochDay());
+  ChineseDate fromFields = chineseChronology.date(2026, 1, 1);
   ```
 
-- Java Date-Time API support through `Chronology` and `ChronoLocalDate`  
-  基于 `Chronology`、`ChronoLocalDate` 的 Java Date-Time API 支持
+  **`ChronoPeriod`**
 
   ```java
-  ChronoLocalDate date = ChineseDate.now();
-  int year = date.get(ChronoField.YEAR);
-  long epochDay = date.toEpochDay();
+  ChineseDate chineseDate = ChineseDate.now();
+  ChronoPeriod period = new ChinesePeriod(1, 2, 3);
+  long monthComponent = period.get(ChronoUnit.MONTHS);
+  ChineseDate result = chineseDate.plus(period);
+  ChineseDate earlier = chineseDate.minus(period);
+  ChronoPeriod elapsed = chineseDate.until(result);
   ```
 
-- Date arithmetic and calendar-specific periods<br>
-  日期加减和农历日期间隔计算
-
-  ```java
-  ChineseDate date = ChineseDate.now();
-  ChineseDate nextMonth = date.plusMonths(1);
-  ChineseDate previousDay = date.minus(1, ChronoUnit.DAYS);
-  ChinesePeriod period = date.getChronology().period(1, 2, 3);
-  ChineseDate result = date.plus(period);
-  ```
-
-- Automatic `Chronology` discovery via SPI and lookup by ID or calendar type  
+- Automatic `Chronology` discovery via SPI and lookup by ID or calendar type<br>
   通过 SPI 自动发现历法，支持按 ID 或历法类型查找
 
   ```java
@@ -70,87 +75,88 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
   File-based examples assume `my-calendar.properties` contains valid calendar configuration.<br>
   文件示例假定 `my-calendar.properties` 包含有效的历法配置。
 
-  1. `ChineseCalendarConfigLoader.configure(Path)` or `ChineseCalendarConfigLoader.configure(Properties)` — explicit file path or in-memory properties.<br>
-     显式指定文件路径或内存中的配置属性。
+    1. `ChineseCalendarConfigLoader.configure(Path)` or `ChineseCalendarConfigLoader.configure(Properties)` — explicit
+       file path or in-memory properties.<br>
+       显式指定文件路径或内存中的配置属性。
 
-     ```java
-     ChineseCalendarConfigLoader.configure(Path.of("my-calendar.properties"));
-     ```
+       ```java
+       ChineseCalendarConfigLoader.configure(Path.of("my-calendar.properties"));
+       ```
 
-     Or use in-memory properties (a single-year example).<br>
-     或使用内存属性（以下仅包含一个年份）。
+       Or use in-memory properties (a single-year example).<br>
+       或使用内存属性（以下仅包含一个年份）。
 
-     ```java
-     Properties properties = new Properties();
-     properties.setProperty("id", "Chinese");
-     ...
-     ChineseCalendarConfigLoader.configure(properties);
-     ```
+       ```java
+       Properties properties = new Properties();
+       properties.setProperty("id", "Chinese");
+       ...
+       ChineseCalendarConfigLoader.configure(properties);
+       ```
 
-  2. `ChineseCalendarConfigProvider` implementations registered through
-     `META-INF/services/io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider`, ordered by
-     `getOrder()`.<br>
-     通过 Java SPI 注册的 `ChineseCalendarConfigProvider`，按 `getOrder()` 排序。
+    2. `ChineseCalendarConfigProvider` implementations registered through
+       `META-INF/services/io.github.sbracely.chinese.calendar.spi.ChineseCalendarConfigProvider`, ordered by
+       `getOrder()`.<br>
+       通过 Java SPI 注册的 `ChineseCalendarConfigProvider`，按 `getOrder()` 排序。
 
-     ```java
-     package example;
+       ```java
+       package example;
+  
+       public final class MyCalendarConfigProvider implements ChineseCalendarConfigProvider {
+           @Override
+           public int getOrder() {
+               return 0;
+           }
+  
+           @Override
+           public Optional<ChineseCalendarConfigData> findConfig() throws IOException {
+               return Optional.of(ChineseCalendarConfigData.fromPath(Path.of("my-calendar.properties")));
+           }
+       }
+       ```
 
-     public final class MyCalendarConfigProvider implements ChineseCalendarConfigProvider {
-         @Override
-         public int getOrder() {
-             return 0;
-         }
+       Add the provider name to the service registration file.<br>
+       在上述服务注册文件中写入提供者类名。
 
-         @Override
-         public Optional<ChineseCalendarConfigData> findConfig() throws IOException {
-             return Optional.of(ChineseCalendarConfigData.fromPath(Path.of("my-calendar.properties")));
-         }
-     }
-     ```
+       ```text
+       example.MyCalendarConfigProvider
+       ```
 
-     Add the provider name to the service registration file.<br>
-     在上述服务注册文件中写入提供者类名。
+    3. JVM property `chinese.calendar.config`.<br>
+       JVM 系统属性 `chinese.calendar.config`。
 
-     ```text
-     example.MyCalendarConfigProvider
-     ```
+       ```java
+       System.setProperty("chinese.calendar.config", "my-calendar.properties");
+       ```
 
-  3. JVM property `chinese.calendar.config`.<br>
-     JVM 系统属性 `chinese.calendar.config`。
+    4. Environment variable `CHINESE_CALENDAR_CONFIG`.<br>
+       环境变量 `CHINESE_CALENDAR_CONFIG`。
 
-     ```java
-     System.setProperty("chinese.calendar.config", "my-calendar.properties");
-     ```
+       Set it before starting the JVM (PowerShell).<br>
+       在启动 JVM 前设置（PowerShell）。
 
-  4. Environment variable `CHINESE_CALENDAR_CONFIG`.<br>
-     环境变量 `CHINESE_CALENDAR_CONFIG`。
+       ```powershell
+       $env:CHINESE_CALENDAR_CONFIG = "my-calendar.properties"
+       ```
 
-     Set it before starting the JVM (PowerShell).<br>
-     在启动 JVM 前设置（PowerShell）。
+    5. `chinese-calendar-config.properties` in the JVM working directory.<br>
+       JVM 工作目录下的同名文件。
 
-     ```powershell
-     $env:CHINESE_CALENDAR_CONFIG = "my-calendar.properties"
-     ```
+       Run in the JVM working directory (PowerShell).<br>
+       在 JVM 工作目录中执行（PowerShell）。
 
-  5. `chinese-calendar-config.properties` in the JVM working directory.<br>
-     JVM 工作目录下的同名文件。
+       ```powershell
+       Copy-Item .\my-calendar.properties .\chinese-calendar-config.properties
+       ```
 
-     Run in the JVM working directory (PowerShell).<br>
-     在 JVM 工作目录中执行（PowerShell）。
+    6. Bundled `chinese-calendar-config.properties` resource.<br>
+       JAR 内置的同名资源。
 
-     ```powershell
-     Copy-Item .\my-calendar.properties .\chinese-calendar-config.properties
-     ```
+       Replace the bundled configuration before building (PowerShell).<br>
+       构建前替换内置配置（PowerShell）。
 
-  6. Bundled `chinese-calendar-config.properties` resource.<br>
-     JAR 内置的同名资源。
-
-     Replace the bundled configuration before building (PowerShell).<br>
-     构建前替换内置配置（PowerShell）。
-
-     ```powershell
-     Copy-Item .\my-calendar.properties .\src\main\resources\chinese-calendar-config.properties
-     ```
+       ```powershell
+       Copy-Item .\my-calendar.properties .\src\main\resources\chinese-calendar-config.properties
+       ```
 
   </details>
 
