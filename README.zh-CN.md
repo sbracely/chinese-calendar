@@ -172,6 +172,12 @@
        System.setProperty("chinese.calendar.config", "my-calendar.properties");
        ```
 
+       或在启动应用时设置（`-D` 必须放在 `-jar` 前）：
+
+       ```powershell
+       java -Dchinese.calendar.config=my-calendar.properties -jar my-app.jar
+       ```
+
     4. 环境变量 `CHINESE_CALENDAR_CONFIG`。
 
        在启动 JVM 前设置（PowerShell）。
@@ -182,19 +188,7 @@
 
     5. JVM 工作目录下的 `chinese-calendar-config.properties` 文件。
 
-       在 JVM 工作目录中执行（PowerShell）。
-
-       ```powershell
-       Copy-Item .\my-calendar.properties .\chinese-calendar-config.properties
-       ```
-
     6. JAR 内置的 `chinese-calendar-config.properties` 资源。
-
-       构建前替换内置配置（PowerShell）。
-
-       ```powershell
-       Copy-Item .\my-calendar.properties .\src\main\resources\chinese-calendar-config.properties
-       ```
 
   </details>
 

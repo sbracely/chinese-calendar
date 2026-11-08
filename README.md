@@ -176,6 +176,12 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
        System.setProperty("chinese.calendar.config", "my-calendar.properties");
        ```
 
+       Or set it when starting your application (`-D` must precede `-jar`):
+
+       ```powershell
+       java -Dchinese.calendar.config=my-calendar.properties -jar my-app.jar
+       ```
+
     4. Environment variable `CHINESE_CALENDAR_CONFIG`.
 
        Set it before starting the JVM (PowerShell).
@@ -186,19 +192,7 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
 
     5. `chinese-calendar-config.properties` in the JVM working directory.
 
-       Run in the JVM working directory (PowerShell).
-
-       ```powershell
-       Copy-Item .\my-calendar.properties .\chinese-calendar-config.properties
-       ```
-
     6. Bundled `chinese-calendar-config.properties` resource.
-
-       Replace the bundled configuration before building (PowerShell).
-
-       ```powershell
-       Copy-Item .\my-calendar.properties .\src\main\resources\chinese-calendar-config.properties
-       ```
 
   </details>
 
