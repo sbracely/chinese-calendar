@@ -35,10 +35,245 @@ public record ChinesePeriod(int years, int months, int days)
         implements ChronoPeriod, Serializable {
 
     /**
+     * A period with all components set to zero.
+     * 所有分量均为零的期间。
+     */
+    public static final ChinesePeriod ZERO = new ChinesePeriod(0, 0, 0);
+
+    /**
      * The supported units in application order.
      * 按应用顺序排列的支持单位。
      */
     private static final List<TemporalUnit> UNITS = List.of(YEARS, MONTHS, DAYS);
+
+    //-----------------------------------------------------------------------
+    // Factory methods
+    // 工厂方法
+    //-----------------------------------------------------------------------
+
+    /**
+     * Creates a period without normalizing its independently signed components.
+     * 创建各分量独立带符号的期间，不进行归一化。
+     *
+     * @param years the signed year component
+     *              带符号的年分量
+     * @param months the signed actual-month component, including leap months
+     *               带符号的实际月分量，包含闰月
+     * @param days the signed day component
+     *             带符号的日分量
+     * @return the Chinese period, or {@link #ZERO} if all components are zero
+     *         农历期间，所有分量为零时返回 {@link #ZERO}
+     */
+    public static ChinesePeriod of(int years, int months, int days) {
+        return (years | months | days) == 0 ? ZERO : new ChinesePeriod(years, months, days);
+    }
+
+    /**
+     * Creates a period containing only years.
+     * 创建仅包含年分量的期间。
+     *
+     * @param years the signed year component
+     *              带符号的年分量
+     * @return the Chinese period
+     *         农历期间
+     */
+    public static ChinesePeriod ofYears(int years) {
+        return of(years, 0, 0);
+    }
+
+    /**
+     * Creates a period containing only actual months, including leap months.
+     * 创建仅包含实际月分量的期间，闰月单独计数。
+     *
+     * @param months the signed month component
+     *               带符号的月分量
+     * @return the Chinese period
+     *         农历期间
+     */
+    public static ChinesePeriod ofMonths(int months) {
+        return of(0, months, 0);
+    }
+
+    /**
+     * Creates a day-based period by converting each week to seven days.
+     * 将每周换算为七天，创建以日为单位的期间。
+     *
+     * @param weeks the signed number of weeks
+     *              带符号的周数
+     * @return the Chinese period
+     *         农历期间
+     * @throws ArithmeticException if the day component overflows
+     *                             如果日分量溢出
+     */
+    public static ChinesePeriod ofWeeks(int weeks) {
+        return ofDays(Math.multiplyExact(weeks, 7));
+    }
+
+    /**
+     * Creates a period containing only days.
+     * 创建仅包含日分量的期间。
+     *
+     * @param days the signed day component
+     *             带符号的日分量
+     * @return the Chinese period
+     *         农历期间
+     */
+    public static ChinesePeriod ofDays(int days) {
+        return of(0, 0, days);
+    }
+
+    /**
+     * Calculates a period between two Chinese dates using {@link ChineseDate#until}.
+     * 使用 {@link ChineseDate#until} 计算两个农历日期之间的期间。
+     *
+     * @param startDateInclusive the inclusive start date
+     *                           包含在内的起始日期
+     * @param endDateExclusive the exclusive end date
+     *                         不包含在内的结束日期
+     * @return the Chinese period
+     *         农历期间
+     * @throws NullPointerException if either date is null
+     *                              如果任一日期为空
+     */
+    public static ChinesePeriod between(ChineseDate startDateInclusive, ChineseDate endDateExclusive) {
+        Objects.requireNonNull(startDateInclusive, "startDateInclusive");
+        Objects.requireNonNull(endDateExclusive, "endDateExclusive");
+        return startDateInclusive.until(endDateExclusive);
+    }
+
+    //-----------------------------------------------------------------------
+    // Component operations
+    // 分量操作
+    //-----------------------------------------------------------------------
+
+    /**
+     * Replaces the year component, leaving months and days unchanged.
+     * 替换年分量，保持月和日分量不变。
+     *
+     * @param years the signed replacement
+     *              带符号的新分量
+     * @return the resulting period, or this period if unchanged
+     *         结果期间，未改变时返回此期间
+     */
+    public ChinesePeriod withYears(int years) {
+        return years == this.years ? this : of(years, months, days);
+    }
+
+    /**
+     * Replaces the actual-month component, leaving years and days unchanged.
+     * 替换实际月分量，保持年和日分量不变。
+     *
+     * @param months the signed replacement
+     *               带符号的新分量
+     * @return the resulting period, or this period if unchanged
+     *         结果期间，未改变时返回此期间
+     */
+    public ChinesePeriod withMonths(int months) {
+        return months == this.months ? this : of(years, months, days);
+    }
+
+    /**
+     * Replaces the day component, leaving years and months unchanged.
+     * 替换日分量，保持年和月分量不变。
+     *
+     * @param days the signed replacement
+     *             带符号的新分量
+     * @return the resulting period, or this period if unchanged
+     *         结果期间，未改变时返回此期间
+     */
+    public ChinesePeriod withDays(int days) {
+        return days == this.days ? this : of(years, months, days);
+    }
+
+    /**
+     * Adds to the year component without normalizing other components.
+     * 增加年分量，不对其他分量进行归一化。
+     *
+     * @param yearsToAdd the signed amount to add
+     *                   带符号的增量
+     * @return the resulting period
+     *         结果期间
+     * @throws ArithmeticException if the year component overflows
+     *                             如果年分量溢出
+     */
+    public ChinesePeriod plusYears(long yearsToAdd) {
+        return withYears(Math.toIntExact(Math.addExact(years, yearsToAdd)));
+    }
+
+    /**
+     * Adds to the actual-month component without converting months to years.
+     * 增加实际月分量，不将月换算为年。
+     *
+     * @param monthsToAdd the signed amount to add
+     *                    带符号的增量
+     * @return the resulting period
+     *         结果期间
+     * @throws ArithmeticException if the month component overflows
+     *                             如果月分量溢出
+     */
+    public ChinesePeriod plusMonths(long monthsToAdd) {
+        return withMonths(Math.toIntExact(Math.addExact(months, monthsToAdd)));
+    }
+
+    /**
+     * Adds to the day component without changing years or months.
+     * 增加日分量，不改变年或月分量。
+     *
+     * @param daysToAdd the signed amount to add
+     *                  带符号的增量
+     * @return the resulting period
+     *         结果期间
+     * @throws ArithmeticException if the day component overflows
+     *                             如果日分量溢出
+     */
+    public ChinesePeriod plusDays(long daysToAdd) {
+        return withDays(Math.toIntExact(Math.addExact(days, daysToAdd)));
+    }
+
+    /**
+     * Subtracts from the year component without normalizing other components.
+     * 减少年分量，不对其他分量进行归一化。
+     *
+     * @param yearsToSubtract the signed amount to subtract
+     *                        带符号的减量
+     * @return the resulting period
+     *         结果期间
+     * @throws ArithmeticException if the year component overflows
+     *                             如果年分量溢出
+     */
+    public ChinesePeriod minusYears(long yearsToSubtract) {
+        return withYears(Math.toIntExact(Math.subtractExact((long) years, yearsToSubtract)));
+    }
+
+    /**
+     * Subtracts from the actual-month component without converting months to years.
+     * 减少实际月分量，不将月换算为年。
+     *
+     * @param monthsToSubtract the signed amount to subtract
+     *                         带符号的减量
+     * @return the resulting period
+     *         结果期间
+     * @throws ArithmeticException if the month component overflows
+     *                             如果月分量溢出
+     */
+    public ChinesePeriod minusMonths(long monthsToSubtract) {
+        return withMonths(Math.toIntExact(Math.subtractExact((long) months, monthsToSubtract)));
+    }
+
+    /**
+     * Subtracts from the day component without changing years or months.
+     * 减少日分量，不改变年或月分量。
+     *
+     * @param daysToSubtract the signed amount to subtract
+     *                      带符号的减量
+     * @return the resulting period
+     *         结果期间
+     * @throws ArithmeticException if the day component overflows
+     *                             如果日分量溢出
+     */
+    public ChinesePeriod minusDays(long daysToSubtract) {
+        return withDays(Math.toIntExact(Math.subtractExact((long) days, daysToSubtract)));
+    }
 
     //-----------------------------------------------------------------------
     // Override methods from ChronoPeriod

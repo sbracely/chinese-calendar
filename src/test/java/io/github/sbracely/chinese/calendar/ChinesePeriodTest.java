@@ -16,6 +16,8 @@ import java.time.Period;
 import java.time.chrono.ChronoPeriod;
 import java.time.chrono.HijrahChronology;
 import java.time.temporal.UnsupportedTemporalTypeException;
+import java.util.List;
+import java.util.function.LongFunction;
 
 import static java.time.temporal.ChronoField.*;
 import static java.time.temporal.ChronoUnit.*;
@@ -24,6 +26,90 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChinesePeriodTest {
     private static final ChineseChronology CHRONOLOGY = ChineseChronology.INSTANCE;
+
+    @Test
+    void createsPeriodsUsingFactoriesWithoutNormalizingMonths() {
+        assertThat(ChinesePeriod.of(-1, 13, -3)).isEqualTo(new ChinesePeriod(-1, 13, -3));
+        assertThat(ChinesePeriod.ofYears(-2)).isEqualTo(new ChinesePeriod(-2, 0, 0));
+        assertThat(ChinesePeriod.ofMonths(13)).isEqualTo(new ChinesePeriod(0, 13, 0));
+        assertThat(ChinesePeriod.ofDays(-3)).isEqualTo(new ChinesePeriod(0, 0, -3));
+        assertThat(ChinesePeriod.ofWeeks(-2)).isEqualTo(new ChinesePeriod(0, 0, -14));
+        assertThat(ChinesePeriod.of(0, 0, 0)).isSameAs(ChinesePeriod.ZERO);
+        assertThat(ChinesePeriod.ofYears(0)).isSameAs(ChinesePeriod.ZERO);
+        assertThat(ChinesePeriod.ofMonths(0)).isSameAs(ChinesePeriod.ZERO);
+        assertThat(ChinesePeriod.ofDays(0)).isSameAs(ChinesePeriod.ZERO);
+        assertThat(ChinesePeriod.ofWeeks(0)).isSameAs(ChinesePeriod.ZERO);
+        for (int weeks : new int[]{Integer.MIN_VALUE, Integer.MAX_VALUE}) {
+            assertThatThrownBy(() -> ChinesePeriod.ofWeeks(weeks)).isInstanceOf(ArithmeticException.class);
+        }
+        ChineseDate start = CHRONOLOGY.date(2023, 1, 1);
+        assertThat(start.plus(ChinesePeriod.ofMonths(13))).isEqualTo(start.plusYears(1));
+        assertThat(start.plus(ChinesePeriod.ofMonths(12))).isNotEqualTo(start.plusYears(1));
+    }
+
+    @Test
+    void replacesAndAdjustsOnlyTheSpecifiedComponent() {
+        ChinesePeriod period = ChinesePeriod.of(-1, 13, -3);
+        assertThat(period.withYears(2)).isEqualTo(new ChinesePeriod(2, 13, -3));
+        assertThat(period.withMonths(-2)).isEqualTo(new ChinesePeriod(-1, -2, -3));
+        assertThat(period.withDays(4)).isEqualTo(new ChinesePeriod(-1, 13, 4));
+        assertThat(period.withYears(-1)).isSameAs(period);
+        assertThat(period.withMonths(13)).isSameAs(period);
+        assertThat(period.withDays(-3)).isSameAs(period);
+        assertThat(period.plusYears(2)).isEqualTo(new ChinesePeriod(1, 13, -3));
+        assertThat(period.plusMonths(-2)).isEqualTo(new ChinesePeriod(-1, 11, -3));
+        assertThat(period.plusDays(4)).isEqualTo(new ChinesePeriod(-1, 13, 1));
+        assertThat(period.minusYears(2)).isEqualTo(new ChinesePeriod(-3, 13, -3));
+        assertThat(period.minusMonths(-2)).isEqualTo(new ChinesePeriod(-1, 15, -3));
+        assertThat(period.minusDays(4)).isEqualTo(new ChinesePeriod(-1, 13, -7));
+        List<LongFunction<ChinesePeriod>> adjustments = List.of(
+                period::plusYears, period::plusMonths, period::plusDays,
+                period::minusYears, period::minusMonths, period::minusDays);
+        for (LongFunction<ChinesePeriod> adjustment : adjustments) {
+            assertThat(adjustment.apply(0)).isSameAs(period);
+        }
+        assertThat(period.withYears(0).withMonths(0).withDays(0)).isSameAs(ChinesePeriod.ZERO);
+    }
+
+    @Test
+    void checksComponentAdjustmentOverflowWithoutTruncatingLongAmounts() {
+        ChinesePeriod maximum = ChinesePeriod.of(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        ChinesePeriod minimum = ChinesePeriod.of(Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE);
+        List<LongFunction<ChinesePeriod>> additions = List.of(
+                maximum::plusYears, maximum::plusMonths, maximum::plusDays);
+        List<LongFunction<ChinesePeriod>> subtractions = List.of(
+                minimum::minusYears, minimum::minusMonths, minimum::minusDays);
+        for (LongFunction<ChinesePeriod> addition : additions) {
+            for (long amount : new long[]{1, Long.MIN_VALUE, Long.MAX_VALUE}) {
+                assertThatThrownBy(() -> addition.apply(amount)).isInstanceOf(ArithmeticException.class);
+            }
+        }
+        for (LongFunction<ChinesePeriod> subtraction : subtractions) {
+            for (long amount : new long[]{1, Long.MIN_VALUE, Long.MAX_VALUE}) {
+                assertThatThrownBy(() -> subtraction.apply(amount)).isInstanceOf(ArithmeticException.class);
+            }
+        }
+        long difference = (long) Integer.MAX_VALUE - Integer.MIN_VALUE;
+        assertThat(minimum.plusYears(difference).plusMonths(difference).plusDays(difference))
+                .isEqualTo(maximum);
+        assertThat(maximum.minusYears(difference).minusMonths(difference).minusDays(difference))
+                .isEqualTo(minimum);
+    }
+
+    @Test
+    void calculatesChinesePeriodsBetweenDatesInBothDirections() {
+        ChineseDate start = CHRONOLOGY.date(2023, 2, 1);
+        ChineseDate end = CHRONOLOGY.date(2023, 2, true, 3);
+        ChinesePeriod forward = ChinesePeriod.between(start, end);
+        ChinesePeriod backward = ChinesePeriod.between(end, start);
+        assertThat(forward).isEqualTo(ChinesePeriod.of(0, 1, 2));
+        assertThat(backward).isEqualTo(ChinesePeriod.of(0, -1, -2));
+        assertThat(start.plus(forward)).isEqualTo(end);
+        assertThat(end.plus(backward)).isEqualTo(start);
+        assertThat(ChinesePeriod.between(start, start).isZero()).isTrue();
+        assertThatThrownBy(() -> ChinesePeriod.between(null, end)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> ChinesePeriod.between(start, null)).isInstanceOf(NullPointerException.class);
+    }
 
     @Test
     void createsPeriodsWithoutAChronologyArgument() {
