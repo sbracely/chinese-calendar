@@ -81,8 +81,8 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
 - Automatic `Chronology` discovery via SPI and lookup by ID or calendar type
 
   ```java
-  Chronology byId = Chronology.of("Chinese");
-  Chronology byType = Chronology.of("chinese");
+  ChineseChronology byId = (ChineseChronology) Chronology.of("Chinese");
+  ChineseChronology byType = (ChineseChronology) Chronology.of("chinese");
   ```
 
 - Custom extension of Chinese calendar data

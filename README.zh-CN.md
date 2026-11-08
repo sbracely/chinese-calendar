@@ -80,8 +80,8 @@
 - 通过 SPI 自动发现历法，支持按 ID 或历法类型查找
 
   ```java
-  Chronology byId = Chronology.of("Chinese");
-  Chronology byType = Chronology.of("chinese");
+  ChineseChronology byId = (ChineseChronology) Chronology.of("Chinese");
+  ChineseChronology byType = (ChineseChronology) Chronology.of("chinese");
   ```
 
 - 自定义扩展农历数据
