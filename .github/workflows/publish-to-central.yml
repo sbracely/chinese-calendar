@@ -7,7 +7,6 @@ on:
 
 concurrency:
   group: maven-central-${{ github.ref }}
-  cancel-in-progress: false
 
 permissions:
   contents: read
