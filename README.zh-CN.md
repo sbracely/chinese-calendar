@@ -5,6 +5,16 @@
 基于 Java 日期时间 API（`java.time.chrono`）实现的中国农历库。  
 默认数据范围：公元 1900 年农历庚子年正月初一至公元 2099 年农历己未年腊月三十。
 
+## Maven 依赖
+
+```xml
+<dependency>
+    <groupId>io.github.sbracely</groupId>
+    <artifactId>chinese-calendar</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
 ## 功能
 
 ### 已实现

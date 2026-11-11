@@ -5,6 +5,16 @@ English | [简体中文](README.zh-CN.md)
 A Chinese calendar library built on Java's Date-Time API (`java.time.chrono`),
 with a default data range from January 31, 1900 to February 8, 2100 (Gregorian calendar).
 
+## Maven
+
+```xml
+<dependency>
+    <groupId>io.github.sbracely</groupId>
+    <artifactId>chinese-calendar</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
 ## Features
 
 ### Implemented
