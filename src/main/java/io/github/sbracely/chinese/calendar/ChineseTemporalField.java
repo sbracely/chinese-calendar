@@ -22,7 +22,15 @@ public enum ChineseTemporalField implements TemporalField {
      * The one-based month position in a year, counting leap months separately.
      * 从一开始计数的年内月份序号，闰月单独计数。
      */
-    MONTH_AS_ORDINAL_OF_YEAR("MonthAsOrdinalOfYear", ChronoUnit.MONTHS, ChronoUnit.YEARS, ValueRange.of(1, 12, 13));
+    MONTH_AS_ORDINAL_OF_YEAR("MonthAsOrdinalOfYear", ChronoUnit.MONTHS, ChronoUnit.YEARS, ValueRange.of(1, 12, 13)),
+    /**
+     * The zodiac animal, numbered 1 to 12 from rat to pig.
+     * Setting it changes the year within the current rat-to-pig cycle.
+     * 生肖，鼠至猪依次编号为 1 至 12；设置时在当前鼠年至猪年周期内调整年份。
+     * Leap months and days are adjusted as for {@link ChineseDate#plusYears(long)}.
+     * 闰月和日期的调整规则与 {@link ChineseDate#plusYears(long)} 相同。
+     */
+    ZODIAC("Zodiac", ChronoUnit.YEARS, ChronoUnit.FOREVER, ValueRange.of(1, 12));
 
     /**
      * The non-localized display name.
@@ -164,6 +172,8 @@ public enum ChineseTemporalField implements TemporalField {
      * and a leap flag fixed at zero; leap years allow thirteen ordinal months and flags 0 or 1.
      * 根据日期所属年份细化范围：平年的月份序号为 1 至 12，闰月标志仅为零；
      * 闰年的月份序号为 1 至 13，闰月标志可为 0 或 1。
+     * The zodiac range is always 1 to 12.
+     * 生肖的范围始终为 1 至 12。
      *
      * @param temporal the Chinese date
      *                 农历日期
@@ -185,6 +195,7 @@ public enum ChineseTemporalField implements TemporalField {
             case IS_LEAP_MONTH -> ValueRange.of(0, date.getChronology().isLeapYear(year) ? 1 : 0);
             case MONTH_AS_ORDINAL_OF_YEAR ->
                     ValueRange.of(1, date.getChronology().isLeapYear(year) ? 13 : 12);
+            case ZODIAC -> range;
         };
     }
 

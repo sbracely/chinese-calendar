@@ -296,6 +296,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
             case IS_LEAP_MONTH -> ValueRange.of(0, data.leapMonthByYear().isEmpty() ? 0 : 1);
             case MONTH_AS_ORDINAL_OF_YEAR ->
                     ValueRange.of(1, field.range().getSmallestMaximum(), data.maximumMonthsInYear());
+            case ZODIAC -> field.range();
         };
     }
 
@@ -716,8 +717,9 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * {@code MONTH_AS_ORDINAL_OF_YEAR} counts leap months separately; in lenient mode
      * its overflow follows actual chronological months.
      * {@code MONTH_AS_ORDINAL_OF_YEAR} 将闰月单独计数，宽松模式下按实际月份顺序处理溢出。
-     * An epoch day takes precedence; remaining fields are cross-checked by the formatter.
-     * 纪元天数优先解析，剩余字段由格式化器进行交叉校验。
+     * An epoch day takes precedence. A zodiac field is checked against the resolved date;
+     * other remaining fields are cross-checked by the formatter.
+     * 纪元天数优先解析。生肖字段与解析后的日期校验，其他剩余字段由格式化器进行交叉校验。
      *
      * @param fieldValues the parsed field values
      *                    已解析的字段值
@@ -736,7 +738,8 @@ public final class ChineseChronology extends AbstractChronology implements Seria
     public ChineseDate resolveDate(Map<TemporalField, Long> fieldValues, ResolverStyle resolverStyle) {
         Objects.requireNonNull(resolverStyle, "resolverStyle");
         if (fieldValues.containsKey(ChronoField.EPOCH_DAY)) {
-            return (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
+            ChineseDate resolvedDate = (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
+            return checkResolvedZodiac(fieldValues, resolvedDate);
         }
         if ((fieldValues.containsKey(ChronoField.MONTH_OF_YEAR)
                 || fieldValues.containsKey(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR))
@@ -811,7 +814,32 @@ public final class ChineseChronology extends AbstractChronology implements Seria
                 return result;
             }
         }
-        return (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
+        ChineseDate resolvedDate = (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
+        return checkResolvedZodiac(fieldValues, resolvedDate);
+    }
+
+    /**
+     * Checks and consumes the zodiac field when a date has been resolved.
+     * 日期解析成功时校验并移除生肖字段。
+     *
+     * @param fields the remaining parsed fields
+     *               剩余的已解析字段
+     * @param date the resolved date, or {@code null} if unresolved
+     *             已解析日期，尚未解析时为 {@code null}
+     * @return the resolved date, or {@code null} if unresolved
+     *         已解析日期，尚未解析时返回 {@code null}
+     * @throws DateTimeException if the zodiac conflicts with the resolved date
+     *                           如果生肖与已解析日期冲突
+     */
+    private ChineseDate checkResolvedZodiac(Map<TemporalField, Long> fields, ChineseDate date) {
+        if (date != null && fields.containsKey(ChineseTemporalField.ZODIAC)) {
+            long zodiac = fields.get(ChineseTemporalField.ZODIAC);
+            if (zodiac != date.getLong(ChineseTemporalField.ZODIAC)) {
+                throw new DateTimeException("Conflict found: " + ChineseTemporalField.ZODIAC);
+            }
+            fields.remove(ChineseTemporalField.ZODIAC);
+        }
+        return date;
     }
 
     /**

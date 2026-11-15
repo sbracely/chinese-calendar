@@ -381,6 +381,12 @@ class ChineseChronologyCustomDataTest {
                 }
                 assertThat(chronology.date(2023, 2, 1).plusMonths(1))
                         .isEqualTo(chronology.date(2023, 2, true, 1));
+                ChineseDate leapDate = chronology.date(2023, 2, true, 1);
+                assertThat(leapDate.getZodiac()).isEqualTo(ChineseZodiac.RABBIT);
+                assertThat(leapDate.with(ChineseTemporalField.ZODIAC, ChineseZodiac.DRAGON.getValue()))
+                        .isEqualTo(chronology.date(2024, 2, 1));
+                assertThatThrownBy(() -> leapDate.with(ChineseTemporalField.ZODIAC, ChineseZodiac.RAT.getValue()))
+                        .isInstanceOf(DateTimeException.class);
                 assertThat(chronology.date(2023, 12, 30).plusDays(1)).isEqualTo(chronology.date(2024, 1, 1));
                 Path selectedConfig = Path.of(args.length > 1 ? args[1] : config);
                 Files.delete(selectedConfig);

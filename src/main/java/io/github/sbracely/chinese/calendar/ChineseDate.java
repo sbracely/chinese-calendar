@@ -279,6 +279,17 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     }
 
     /**
+     * Gets the zodiac animal of this date's Chinese calendar year.
+     * 获取此日期所属农历年份的生肖，生肖在农历正月初一更替。
+     *
+     * @return the zodiac animal
+     *         生肖
+     */
+    public ChineseZodiac getZodiac() {
+        return ChineseZodiac.fromYear(prolepticYear);
+    }
+
+    /**
      * Gets the month number; regular and leap months share the same number.
      * 获取月份编号；普通月与同名闰月使用相同编号。
      *
@@ -433,6 +444,9 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                     }
                     yield resolvePreviousValid(prolepticYear, (int) newValue, isLeapMonth, dayOfMonth);
                 }
+                // Adjust within the current rat-to-pig cycle; plusYears resolves leap months and month ends.
+                // 在当前鼠年至猪年周期内调整，闰月和月末由 plusYears 处理。
+                case ZODIAC -> plusYears(newValue - getZodiac().getValue());
             };
         }
         return (ChineseDate) ChronoLocalDate.super.with(field, newValue);
@@ -727,6 +741,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                     }
                     yield month;
                 }
+                case ZODIAC -> getZodiac().getValue();
             };
         }
         return field.getFrom(this);
