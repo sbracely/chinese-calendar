@@ -30,7 +30,17 @@ public enum ChineseTemporalField implements TemporalField {
      * Leap months and days are adjusted as for {@link ChineseDate#plusYears(long)}.
      * 闰月和日期的调整规则与 {@link ChineseDate#plusYears(long)} 相同。
      */
-    ZODIAC("Zodiac", ChronoUnit.YEARS, ChronoUnit.FOREVER, ValueRange.of(1, 12));
+    ZODIAC("Zodiac", ChronoUnit.YEARS, ChronoUnit.FOREVER, ValueRange.of(1, 12)),
+    /**
+     * The sexagenary year, numbered 1 for Jia-Zi to 60 for Gui-Hai.
+     * Setting it changes the year within the current Jia-Zi-to-Gui-Hai cycle,
+     * using {@link ChineseDate#plusYears(long)} to adjust leap months and month ends.
+     * 干支年，甲子至癸亥依次编号为 1 至 60；设置时在当前六十年周期内调整年份，
+     * 闰月和月末的调整规则与 {@link ChineseDate#plusYears(long)} 相同。
+     * Targets outside the configured calendar range are rejected.
+     * 目标年份超出已配置历法范围时抛出异常。
+     */
+    SEXAGENARY_YEAR("SexagenaryYear", ChronoUnit.YEARS, ChronoUnit.FOREVER, ValueRange.of(1, 60));
 
     /**
      * The non-localized display name.
@@ -174,6 +184,8 @@ public enum ChineseTemporalField implements TemporalField {
      * 闰年的月份序号为 1 至 13，闰月标志可为 0 或 1。
      * The zodiac range is always 1 to 12.
      * 生肖的范围始终为 1 至 12。
+     * The sexagenary year range is always 1 to 60.
+     * 干支年的范围始终为 1 至 60。
      *
      * @param temporal the Chinese date
      *                 农历日期
@@ -195,7 +207,7 @@ public enum ChineseTemporalField implements TemporalField {
             case IS_LEAP_MONTH -> ValueRange.of(0, date.getChronology().isLeapYear(year) ? 1 : 0);
             case MONTH_AS_ORDINAL_OF_YEAR ->
                     ValueRange.of(1, date.getChronology().isLeapYear(year) ? 13 : 12);
-            case ZODIAC -> range;
+            case ZODIAC, SEXAGENARY_YEAR -> range;
         };
     }
 

@@ -16,6 +16,7 @@ import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.chrono.Chronology;
 import java.time.temporal.ChronoField;
+import java.time.temporal.ValueRange;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -386,6 +387,15 @@ class ChineseChronologyCustomDataTest {
                 assertThat(leapDate.with(ChineseTemporalField.ZODIAC, ChineseZodiac.DRAGON.getValue()))
                         .isEqualTo(chronology.date(2024, 2, 1));
                 assertThatThrownBy(() -> leapDate.with(ChineseTemporalField.ZODIAC, ChineseZodiac.RAT.getValue()))
+                        .isInstanceOf(DateTimeException.class);
+                assertThat(leapDate.getSexagenaryYear()).isEqualTo(ChineseSexagenaryYear.GUI_MAO);
+                assertThat(chronology.range(ChineseTemporalField.SEXAGENARY_YEAR))
+                        .isEqualTo(ValueRange.of(1, 60));
+                assertThat(leapDate.with(ChineseTemporalField.SEXAGENARY_YEAR, 41))
+                        .isEqualTo(chronology.date(2024, 2, 1));
+                assertThatThrownBy(() -> leapDate.with(ChineseTemporalField.SEXAGENARY_YEAR, 1))
+                        .isInstanceOf(DateTimeException.class);
+                assertThatThrownBy(() -> leapDate.with(ChineseTemporalField.SEXAGENARY_YEAR, 60))
                         .isInstanceOf(DateTimeException.class);
                 assertThat(chronology.date(2023, 12, 30).plusDays(1)).isEqualTo(chronology.date(2024, 1, 1));
                 Path selectedConfig = Path.of(args.length > 1 ? args[1] : config);

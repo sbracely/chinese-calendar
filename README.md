@@ -35,6 +35,7 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
   int lengthOfYear = chineseDate.lengthOfYear();
   long epochDay = chineseDate.toEpochDay();
   ChineseZodiac zodiac = chineseDate.getZodiac();
+  ChineseSexagenaryYear sexagenaryYear = chineseDate.getSexagenaryYear();
   
   ChineseDate nextMonth = chineseDate.plus(1, ChronoUnit.MONTHS);
   ChineseDate previousDay = chineseDate.plus(-1, ChronoUnit.DAYS);
@@ -211,7 +212,6 @@ with a default data range from January 31, 1900 to February 8, 2100 (Gregorian c
 ### Planned Features
 
 - The 24 solar terms
-- Sexagenary cycle dating
 - Formatting and localized text for calendar dates
 
 ## Default data sources

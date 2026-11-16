@@ -290,6 +290,17 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     }
 
     /**
+     * Gets the sexagenary year, changing on the first day of the Chinese year.
+     * 获取此日期所属农历年份的干支，干支在农历正月初一更替。
+     *
+     * @return the sexagenary year
+     *         干支年
+     */
+    public ChineseSexagenaryYear getSexagenaryYear() {
+        return ChineseSexagenaryYear.fromYear(prolepticYear);
+    }
+
+    /**
      * Gets the month number; regular and leap months share the same number.
      * 获取月份编号；普通月与同名闰月使用相同编号。
      *
@@ -447,6 +458,9 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                 // Adjust within the current rat-to-pig cycle; plusYears resolves leap months and month ends.
                 // 在当前鼠年至猪年周期内调整，闰月和月末由 plusYears 处理。
                 case ZODIAC -> plusYears(newValue - getZodiac().getValue());
+                // Adjust within the current Jia-Zi-to-Gui-Hai cycle; plusYears resolves leap months and month ends.
+                // 在当前甲子至癸亥的六十年周期内调整，闰月和月末由 plusYears 处理。
+                case SEXAGENARY_YEAR -> plusYears(newValue - getSexagenaryYear().getValue());
             };
         }
         return (ChineseDate) ChronoLocalDate.super.with(field, newValue);
@@ -742,6 +756,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                     yield month;
                 }
                 case ZODIAC -> getZodiac().getValue();
+                case SEXAGENARY_YEAR -> getSexagenaryYear().getValue();
             };
         }
         return field.getFrom(this);
