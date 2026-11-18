@@ -1,15 +1,16 @@
 package io.github.sbracely.chinese.calendar;
 
 import java.time.DateTimeException;
+import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.ResourceBundle;
 
 /**
- * The sixty years of the Chinese sexagenary cycle, in their customary order.
+ * The sixty stem-branch pairs of the Chinese sexagenary cycle, used for years and days.
  * 按传统顺序排列的六十甲子。
  */
-public enum ChineseSexagenaryYear {
+public enum ChineseSexagenary {
     /** 甲子。 */
     JIA_ZI,
     /** 乙丑。 */
@@ -132,6 +133,14 @@ public enum ChineseSexagenaryYear {
     GUI_HAI;
 
     /**
+     * The Jia-Zi day 1949-10-01, used to anchor the continuous day cycle.
+     * 以 1949-10-01 甲子日为连续干支纪日的基准。
+     *
+     * @see <a href="https://en.wikipedia.org/wiki/Sexagenary_cycle#Examples">Day-cycle example</a>
+     */
+    private static final long JIA_ZI_EPOCH_DAY = LocalDate.of(1949, 10, 1).toEpochDay();
+
+    /**
      * Gets the cycle value, from 1 for Jia-Zi to 60 for Gui-Hai.
      * 获取六十甲子序号，甲子为 1，癸亥为 60。
      *
@@ -143,19 +152,19 @@ public enum ChineseSexagenaryYear {
     }
 
     /**
-     * Obtains a sexagenary year by its cycle value.
-     * 根据六十甲子序号获取干支年。
+     * Obtains a stem-branch pair by its cycle value.
+     * 根据六十甲子序号获取干支。
      *
      * @param value the value from 1 to 60
      *              1 至 60 的数值
-     * @return the sexagenary year
-     *         干支年
+     * @return the stem-branch pair
+     *         干支
      * @throws DateTimeException if the value is outside 1 to 60
      *                           如果数值不在 1 至 60 之间
      */
-    public static ChineseSexagenaryYear of(int value) {
+    public static ChineseSexagenary of(int value) {
         if (value < 1 || value > 60) {
-            throw new DateTimeException("Invalid Chinese sexagenary year: " + value);
+            throw new DateTimeException("Invalid Chinese sexagenary value: " + value);
         }
         return values()[value - 1];
     }
@@ -169,13 +178,26 @@ public enum ChineseSexagenaryYear {
      * @return the sexagenary year
      *         干支年
      */
-    static ChineseSexagenaryYear fromYear(int year) {
+    static ChineseSexagenary fromYear(int year) {
         return of(Math.floorMod(year - 4L, 60) + 1);
     }
 
     /**
-     * Gets the CLDR display name, without a year suffix.
-     * 获取 CLDR 本地化名称，不附加“年”字。
+     * Calculates the continuous day cycle, without a time-of-day or time-zone rule.
+     * 根据纪元天数计算连续的干支日，不涉及日内时刻或时区换日规则。
+     *
+     * @param epochDay the supported date's epoch day
+     *                 受支持日期的纪元天数
+     * @return the stem-branch pair
+     *         日干支
+     */
+    static ChineseSexagenary fromEpochDay(long epochDay) {
+        return of(Math.floorMod(epochDay - JIA_ZI_EPOCH_DAY, 60) + 1);
+    }
+
+    /**
+     * Gets the CLDR display name, without a year or day suffix.
+     * 获取 CLDR 本地化名称，不附加“年”或“日”字。
      *
      * @param locale the locale to use
      *               使用的语言环境

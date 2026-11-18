@@ -35,7 +35,8 @@
   int lengthOfYear = chineseDate.lengthOfYear();
   long epochDay = chineseDate.toEpochDay();
   ChineseZodiac zodiac = chineseDate.getZodiac();
-  ChineseSexagenaryYear sexagenaryYear = chineseDate.getSexagenaryYear();
+  ChineseSexagenary sexagenaryYear = chineseDate.getSexagenaryYear();
+  String text = chineseDate.format(ChineseDateFormatters.SEXAGENARY_YEAR_DATE);
 
   ChineseDate nextMonth = chineseDate.plus(1, ChronoUnit.MONTHS);
   ChineseDate previousDay = chineseDate.plus(-1, ChronoUnit.DAYS);
@@ -208,7 +209,6 @@
 ### 计划实现
 
 - 二十四节气
-- 农历日期格式化和本地化文本
 
 ## 默认数据来源
 

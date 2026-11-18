@@ -40,7 +40,16 @@ public enum ChineseTemporalField implements TemporalField {
      * Targets outside the configured calendar range are rejected.
      * 目标年份超出已配置历法范围时抛出异常。
      */
-    SEXAGENARY_YEAR("SexagenaryYear", ChronoUnit.YEARS, ChronoUnit.FOREVER, ValueRange.of(1, 60));
+    SEXAGENARY_YEAR("SexagenaryYear", ChronoUnit.YEARS, ChronoUnit.FOREVER, ValueRange.of(1, 60)),
+    /**
+     * The continuous sexagenary day, numbered 1 for Jia-Zi to 60 for Gui-Hai.
+     * Setting it adjusts within the current sixty-day cycle, not the current month or year.
+     * 连续循环的干支日，甲子至癸亥依次编号为 1 至 60；设置时在当前六十天周期内调整，
+     * 不局限于当前农历月或年。
+     * Targets outside the configured date range are rejected.
+     * 目标日期超出已配置历法范围时抛出异常。
+     */
+    SEXAGENARY_DAY("SexagenaryDay", ChronoUnit.DAYS, ChronoUnit.FOREVER, ValueRange.of(1, 60));
 
     /**
      * The non-localized display name.
@@ -184,8 +193,8 @@ public enum ChineseTemporalField implements TemporalField {
      * 闰年的月份序号为 1 至 13，闰月标志可为 0 或 1。
      * The zodiac range is always 1 to 12.
      * 生肖的范围始终为 1 至 12。
-     * The sexagenary year range is always 1 to 60.
-     * 干支年的范围始终为 1 至 60。
+     * Both sexagenary ranges are always 1 to 60.
+     * 干支年和干支日的范围始终为 1 至 60。
      *
      * @param temporal the Chinese date
      *                 农历日期
@@ -207,7 +216,7 @@ public enum ChineseTemporalField implements TemporalField {
             case IS_LEAP_MONTH -> ValueRange.of(0, date.getChronology().isLeapYear(year) ? 1 : 0);
             case MONTH_AS_ORDINAL_OF_YEAR ->
                     ValueRange.of(1, date.getChronology().isLeapYear(year) ? 13 : 12);
-            case ZODIAC, SEXAGENARY_YEAR -> range;
+            case ZODIAC, SEXAGENARY_YEAR, SEXAGENARY_DAY -> range;
         };
     }
 

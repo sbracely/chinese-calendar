@@ -296,7 +296,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
             case IS_LEAP_MONTH -> ValueRange.of(0, data.leapMonthByYear().isEmpty() ? 0 : 1);
             case MONTH_AS_ORDINAL_OF_YEAR ->
                     ValueRange.of(1, field.range().getSmallestMaximum(), data.maximumMonthsInYear());
-            case ZODIAC, SEXAGENARY_YEAR -> field.range();
+            case ZODIAC, SEXAGENARY_YEAR, SEXAGENARY_DAY -> field.range();
         };
     }
 
@@ -717,9 +717,9 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      * {@code MONTH_AS_ORDINAL_OF_YEAR} counts leap months separately; in lenient mode
      * its overflow follows actual chronological months.
      * {@code MONTH_AS_ORDINAL_OF_YEAR} 将闰月单独计数，宽松模式下按实际月份顺序处理溢出。
-     * An epoch day takes precedence. Zodiac and sexagenary year fields are checked against the resolved date;
+     * An epoch day takes precedence. Derived Chinese fields are checked against the resolved date;
      * other remaining fields are cross-checked by the formatter.
-     * 纪元天数优先解析。生肖和干支年字段与解析后的日期校验，其他剩余字段由格式化器进行交叉校验。
+     * 纪元天数优先解析。农历派生字段与解析后的日期校验，其他剩余字段由格式化器进行交叉校验。
      * Neither cycle field determines an absolute year on its own.
      * 生肖和干支年字段均不能单独确定绝对年份。
      *
@@ -741,7 +741,7 @@ public final class ChineseChronology extends AbstractChronology implements Seria
         Objects.requireNonNull(resolverStyle, "resolverStyle");
         if (fieldValues.containsKey(ChronoField.EPOCH_DAY)) {
             ChineseDate resolvedDate = (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
-            return checkResolvedYearCycles(fieldValues, resolvedDate);
+            return checkResolvedDerivedFields(fieldValues, resolvedDate);
         }
         if ((fieldValues.containsKey(ChronoField.MONTH_OF_YEAR)
                 || fieldValues.containsKey(ChineseTemporalField.MONTH_AS_ORDINAL_OF_YEAR))
@@ -817,12 +817,12 @@ public final class ChineseChronology extends AbstractChronology implements Seria
             }
         }
         ChineseDate resolvedDate = (ChineseDate) super.resolveDate(fieldValues, resolverStyle);
-        return checkResolvedYearCycles(fieldValues, resolvedDate);
+        return checkResolvedDerivedFields(fieldValues, resolvedDate);
     }
 
     /**
-     * Checks and consumes the year-cycle fields when a date has been resolved.
-     * 日期解析成功时校验并移除生肖和干支年字段。
+     * Checks and consumes derived fields when a date has been resolved.
+     * 日期解析成功时校验并移除生肖、干支年和干支日字段。
      *
      * @param fields the remaining parsed fields
      *               剩余的已解析字段
@@ -830,13 +830,14 @@ public final class ChineseChronology extends AbstractChronology implements Seria
      *             已解析日期，尚未解析时为 {@code null}
      * @return the resolved date, or {@code null} if unresolved
      *         已解析日期，尚未解析时返回 {@code null}
-     * @throws DateTimeException if a year-cycle field conflicts with the resolved date
-     *                           如果生肖或干支年与已解析日期冲突
+     * @throws DateTimeException if a derived field conflicts with the resolved date
+     *                           如果派生字段与已解析日期冲突
      */
-    private ChineseDate checkResolvedYearCycles(Map<TemporalField, Long> fields, ChineseDate date) {
+    private ChineseDate checkResolvedDerivedFields(Map<TemporalField, Long> fields, ChineseDate date) {
         if (date != null) {
             for (ChineseTemporalField field : new ChineseTemporalField[]{
-                    ChineseTemporalField.ZODIAC, ChineseTemporalField.SEXAGENARY_YEAR}) {
+                    ChineseTemporalField.ZODIAC, ChineseTemporalField.SEXAGENARY_YEAR,
+                    ChineseTemporalField.SEXAGENARY_DAY}) {
                 Long value = fields.get(field);
                 if (value != null) {
                     if (value != date.getLong(field)) {

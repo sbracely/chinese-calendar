@@ -36,8 +36,8 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     //-----------------------------------------------------------------------
 
     /**
-     * The proleptic year.
-     * 历法年份。
+     * The proleptic year, numbered by the Gregorian year containing lunar New Year.
+     * 历法年份，以农历年年首所在的公历年份编号。
      */
     private final transient int prolepticYear;
 
@@ -268,8 +268,8 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
     }
 
     /**
-     * Gets the proleptic year.
-     * 获取历法年份。
+     * Gets the proleptic year, numbered by the Gregorian year containing lunar New Year.
+     * 获取历法年份，以农历年年首所在的公历年份编号。
      *
      * @return the proleptic year
      *         历法年份
@@ -296,8 +296,19 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
      * @return the sexagenary year
      *         干支年
      */
-    public ChineseSexagenaryYear getSexagenaryYear() {
-        return ChineseSexagenaryYear.fromYear(prolepticYear);
+    public ChineseSexagenary getSexagenaryYear() {
+        return ChineseSexagenary.fromYear(prolepticYear);
+    }
+
+    /**
+     * Gets the continuously cycling sexagenary day, without a time-of-day rule.
+     * 获取连续循环的干支日，不涉及日内时刻换日规则。
+     *
+     * @return the sexagenary day
+     *         日干支
+     */
+    public ChineseSexagenary getSexagenaryDay() {
+        return ChineseSexagenary.fromEpochDay(toEpochDay());
     }
 
     /**
@@ -461,6 +472,9 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                 // Adjust within the current Jia-Zi-to-Gui-Hai cycle; plusYears resolves leap months and month ends.
                 // 在当前甲子至癸亥的六十年周期内调整，闰月和月末由 plusYears 处理。
                 case SEXAGENARY_YEAR -> plusYears(newValue - getSexagenaryYear().getValue());
+                // Adjust within the current sixty-day cycle, even across month and year boundaries.
+                // 在当前六十天周期内调整，允许跨月、跨年。
+                case SEXAGENARY_DAY -> plusDays(newValue - getSexagenaryDay().getValue());
             };
         }
         return (ChineseDate) ChronoLocalDate.super.with(field, newValue);
@@ -757,6 +771,7 @@ public final class ChineseDate implements ChronoLocalDate, Serializable {
                 }
                 case ZODIAC -> getZodiac().getValue();
                 case SEXAGENARY_YEAR -> getSexagenaryYear().getValue();
+                case SEXAGENARY_DAY -> getSexagenaryDay().getValue();
             };
         }
         return field.getFrom(this);

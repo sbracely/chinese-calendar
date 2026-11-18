@@ -23,9 +23,10 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class ChineseSexagenaryYearTest {
+class ChineseSexagenaryTest {
     private static final ChineseChronology CHRONOLOGY = ChineseChronology.INSTANCE;
     private static final ChineseTemporalField SEXAGENARY_YEAR = ChineseTemporalField.SEXAGENARY_YEAR;
+    private static final ChineseTemporalField SEXAGENARY_DAY = ChineseTemporalField.SEXAGENARY_DAY;
     private static final ChineseTemporalField ZODIAC = ChineseTemporalField.ZODIAC;
 
     @Test
@@ -33,39 +34,81 @@ class ChineseSexagenaryYearTest {
         String[] stems = {"甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"};
         String[] branches = {"子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"};
         for (int i = 0; i < 60; i++) {
-            ChineseSexagenaryYear year = ChineseSexagenaryYear.of(i + 1);
+            ChineseSexagenary year = ChineseSexagenary.of(i + 1);
             assertThat(year.getValue()).isEqualTo(i + 1);
             assertThat(year.getDisplayName(Locale.CHINESE)).isEqualTo(stems[i % 10] + branches[i % 12]);
             assertThat(ChineseDate.of(1984 + i, 1, 1).getSexagenaryYear()).isEqualTo(year);
             assertThat(ChineseDate.of(1924 + i, 12, 1).getSexagenaryYear()).isEqualTo(year);
         }
-        assertThat(ChineseDate.of(2024, 1, 1).getSexagenaryYear()).isEqualTo(ChineseSexagenaryYear.JIA_CHEN);
-        assertThat(ChineseDate.of(2044, 1, 1).getSexagenaryYear()).isEqualTo(ChineseSexagenaryYear.JIA_ZI);
-        assertThat(ChineseDate.of(1900, 1, 1).getSexagenaryYear()).isEqualTo(ChineseSexagenaryYear.GENG_ZI);
-        assertThat(ChineseDate.of(2099, 12, 1).getSexagenaryYear()).isEqualTo(ChineseSexagenaryYear.JI_WEI);
-        assertThat(ChineseSexagenaryYear.fromYear(0)).isEqualTo(ChineseSexagenaryYear.GENG_SHEN);
-        assertThat(ChineseSexagenaryYear.fromYear(-1)).isEqualTo(ChineseSexagenaryYear.JI_WEI);
-        assertThat(ChineseSexagenaryYear.fromYear(Integer.MIN_VALUE)).isEqualTo(ChineseSexagenaryYear.REN_ZI);
-        assertThat(ChineseSexagenaryYear.fromYear(Integer.MAX_VALUE)).isEqualTo(ChineseSexagenaryYear.DING_MAO);
-        assertThatThrownBy(() -> ChineseSexagenaryYear.of(0)).isInstanceOf(DateTimeException.class);
-        assertThatThrownBy(() -> ChineseSexagenaryYear.of(61)).isInstanceOf(DateTimeException.class);
+        assertThat(ChineseDate.of(2024, 1, 1).getSexagenaryYear()).isEqualTo(ChineseSexagenary.JIA_CHEN);
+        assertThat(ChineseDate.of(2044, 1, 1).getSexagenaryYear()).isEqualTo(ChineseSexagenary.JIA_ZI);
+        assertThat(ChineseDate.of(1900, 1, 1).getSexagenaryYear()).isEqualTo(ChineseSexagenary.GENG_ZI);
+        assertThat(ChineseDate.of(2099, 12, 1).getSexagenaryYear()).isEqualTo(ChineseSexagenary.JI_WEI);
+        assertThat(ChineseSexagenary.fromYear(0)).isEqualTo(ChineseSexagenary.GENG_SHEN);
+        assertThat(ChineseSexagenary.fromYear(-1)).isEqualTo(ChineseSexagenary.JI_WEI);
+        assertThat(ChineseSexagenary.fromYear(Integer.MIN_VALUE)).isEqualTo(ChineseSexagenary.REN_ZI);
+        assertThat(ChineseSexagenary.fromYear(Integer.MAX_VALUE)).isEqualTo(ChineseSexagenary.DING_MAO);
+        assertThatThrownBy(() -> ChineseSexagenary.of(0)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> ChineseSexagenary.of(61)).isInstanceOf(DateTimeException.class);
     }
 
     @Test
     void changesOnlyAtLunarNewYear() {
         for (LocalDate day : List.of(LocalDate.of(2023, 12, 31), LocalDate.of(2024, 1, 1),
                 LocalDate.of(2024, 2, 5), LocalDate.of(2024, 2, 9))) {
-            assertThat(ChineseDate.from(day).getSexagenaryYear()).isEqualTo(ChineseSexagenaryYear.GUI_MAO);
+            assertThat(ChineseDate.from(day).getSexagenaryYear()).isEqualTo(ChineseSexagenary.GUI_MAO);
         }
         assertThat(ChineseDate.from(LocalDate.of(2024, 2, 10)).getSexagenaryYear())
-                .isEqualTo(ChineseSexagenaryYear.JIA_CHEN);
+                .isEqualTo(ChineseSexagenary.JIA_CHEN);
         assertThat(ChineseDate.of(2023, 2, true, 1).getSexagenaryYear())
-                .isEqualTo(ChineseSexagenaryYear.GUI_MAO);
+                .isEqualTo(ChineseSexagenary.GUI_MAO);
+    }
+
+    @Test
+    void followsIndependentDayReferencesAndContinuesAcrossCalendarBoundaries() {
+        // References: https://en.wikipedia.org/wiki/Sexagenary_cycle#Examples (1949-10-01, Jia-Zi)
+        // https://github.com/6tail/lunar-java/blob/master/src/test/java/test/LunarTest.java
+        // test(): 2019-05-01 is Wu-Xu. These are day references, not the CSV's year labels.
+        assertThat(ChineseDate.from(LocalDate.of(1949, 10, 1)).getSexagenaryDay())
+                .isEqualTo(ChineseSexagenary.JIA_ZI);
+        assertThat(ChineseDate.from(LocalDate.of(2019, 5, 1)).getSexagenaryDay())
+                .isEqualTo(ChineseSexagenary.WU_XU);
+        ChineseDate anchor = ChineseDate.from(LocalDate.of(1949, 10, 1));
+        for (int i = 0; i < 60; i++) {
+            assertThat(anchor.plusDays(i).getSexagenaryDay()).isEqualTo(ChineseSexagenary.of(i + 1));
+            assertThat(anchor.plusDays(i - 60).getSexagenaryDay()).isEqualTo(ChineseSexagenary.of(i + 1));
+        }
+        for (ChineseDate date : List.of(ChineseDate.of(2023, 12, 30),
+                ChineseDate.of(2023, 2, 30), ChineseDate.of(2023, 2, true, 29))) {
+            assertThat(date.plusDays(1).getSexagenaryDay().getValue())
+                    .isEqualTo(date.getSexagenaryDay().getValue() % 60 + 1);
+        }
+    }
+
+    @Test
+    void adjustsWithinTheCurrentSixtyDayCycleRatherThanTheMonthOrYear() {
+        ChineseDate anchor = ChineseDate.from(LocalDate.of(1949, 10, 1));
+        assertThat(SEXAGENARY_DAY.getFrom(anchor)).isEqualTo(1);
+        assertThat(anchor.range(SEXAGENARY_DAY)).isEqualTo(ValueRange.of(1, 60));
+        assertThat(CHRONOLOGY.range(SEXAGENARY_DAY)).isEqualTo(ValueRange.of(1, 60));
+        assertThat(SEXAGENARY_DAY.getBaseUnit()).isEqualTo(ChronoUnit.DAYS);
+        assertThat(SEXAGENARY_DAY.getRangeUnit()).isEqualTo(ChronoUnit.FOREVER);
+        ChineseDate last = ChineseDate.from(LocalDate.of(1949, 11, 29));
+        assertThat(anchor.with(SEXAGENARY_DAY, 60)).isEqualTo(last);
+        assertThat(SEXAGENARY_DAY.adjustInto(last, 1)).isEqualTo(anchor);
+        ChineseDate newYear = ChineseDate.of(2024, 1, 1);
+        assertThat(newYear.with(SEXAGENARY_DAY, 1).getYear()).isEqualTo(2023);
+        assertThatThrownBy(() -> anchor.with(SEXAGENARY_DAY, 0)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> anchor.with(SEXAGENARY_DAY, 61)).isInstanceOf(DateTimeException.class);
+        assertThatThrownBy(() -> ChineseDate.of(1900, 1, 1).with(SEXAGENARY_DAY, 1))
+                .isInstanceOf(DateTimeException.class);
+        ChineseDate end = ChineseDate.of(2099, 12, 30);
+        assertThatThrownBy(() -> end.with(SEXAGENARY_DAY, 60)).isInstanceOf(DateTimeException.class);
     }
 
     @Test
     void displaysCldrNamesAndInheritedRootNames() {
-        ChineseSexagenaryYear year = ChineseSexagenaryYear.JIA_ZI;
+        ChineseSexagenary year = ChineseSexagenary.JIA_ZI;
         assertThat(year.getDisplayName(Locale.CHINESE)).isEqualTo("甲子");
         assertThat(year.getDisplayName(Locale.JAPANESE)).isEqualTo("甲子");
         assertThat(year.getDisplayName(Locale.KOREAN)).isEqualTo("갑자");
@@ -137,8 +180,13 @@ class ChineseSexagenaryYearTest {
                     Map<TemporalField, Long> matching = new HashMap<>(input);
                     matching.put(SEXAGENARY_YEAR, (long) date.getSexagenaryYear().getValue());
                     matching.put(ZODIAC, (long) date.getZodiac().getValue());
+                    matching.put(SEXAGENARY_DAY, (long) date.getSexagenaryDay().getValue());
                     assertThat(CHRONOLOGY.resolveDate(matching, style)).isEqualTo(date);
-                    assertThat(matching).doesNotContainKeys(SEXAGENARY_YEAR, ZODIAC);
+                    assertThat(matching).doesNotContainKeys(SEXAGENARY_YEAR, ZODIAC, SEXAGENARY_DAY);
+                    Map<TemporalField, Long> conflictingDay = new HashMap<>(input);
+                    conflictingDay.put(SEXAGENARY_DAY, date.getLong(SEXAGENARY_DAY) + 1);
+                    assertThatThrownBy(() -> CHRONOLOGY.resolveDate(conflictingDay, style))
+                            .isInstanceOf(DateTimeException.class);
                     for (int invalid : new int[]{0, 42, 61}) {
                         Map<TemporalField, Long> conflicting = new HashMap<>(input);
                         conflicting.put(SEXAGENARY_YEAR, (long) invalid);
@@ -158,11 +206,17 @@ class ChineseSexagenaryYearTest {
                         builder.appendValue(field).appendLiteral('/');
                         text.add(value.toString());
                     });
-                    DateTimeFormatter format = builder.appendValue(SEXAGENARY_YEAR)
+                    DateTimeFormatter format = builder.appendValue(SEXAGENARY_YEAR).appendLiteral('/')
+                            .appendValue(SEXAGENARY_DAY)
                             .toFormatter(Locale.ROOT).withChronology(CHRONOLOGY).withResolverStyle(style);
-                    assertThat(format.parse(text + "/" + date.getSexagenaryYear().getValue(), ChineseDate::from))
+                    String suffix = "/" + date.getSexagenaryDay().getValue();
+                    assertThat(format.parse(text + "/" + date.getSexagenaryYear().getValue() + suffix,
+                            ChineseDate::from))
                             .isEqualTo(date);
-                    assertThatThrownBy(() -> format.parse(text + "/42", ChineseDate::from))
+                    assertThatThrownBy(() -> format.parse(text + "/42" + suffix, ChineseDate::from))
+                            .isInstanceOf(DateTimeException.class);
+                    assertThatThrownBy(() -> format.parse(text + "/" + date.getSexagenaryYear().getValue()
+                            + "/0", ChineseDate::from))
                             .isInstanceOf(DateTimeException.class);
                 }
             }
@@ -177,6 +231,7 @@ class ChineseSexagenaryYearTest {
                 .appendValue(ChronoField.DAY_OF_MONTH)
                 .toFormatter(Locale.CHINESE).withChronology(CHRONOLOGY);
         Map<TemporalField, Long> input = Map.of(SEXAGENARY_YEAR, 41L, ZODIAC, 5L,
+                SEXAGENARY_DAY, 1L,
                 ChronoField.MONTH_OF_YEAR, 1L, ChronoField.DAY_OF_MONTH, 1L);
         for (ResolverStyle style : ResolverStyle.values()) {
             Map<TemporalField, Long> fields = new HashMap<>(input);
@@ -209,7 +264,7 @@ class ChineseSexagenaryYearTest {
     }
 
     private static Map<Long, String> names() {
-        return Arrays.stream(ChineseSexagenaryYear.values())
+        return Arrays.stream(ChineseSexagenary.values())
                 .collect(Collectors.toMap(y -> (long) y.getValue(), y -> y.getDisplayName(Locale.CHINESE)));
     }
 

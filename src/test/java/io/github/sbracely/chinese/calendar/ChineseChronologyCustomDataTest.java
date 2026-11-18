@@ -44,6 +44,11 @@ class ChineseChronologyCustomDataTest {
         run("common", fixture("common-only").toString());
     }
 
+    @Test
+    void loadingFormattersDoesNotFreezeCalendarConfiguration() throws Exception {
+        run("formatters-before-configuration", fixture("common-only").toString());
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"empty", "gap", "month", "leap", "month-count", "id", "type",
             "year", "duplicate-year", "overflow"})
@@ -298,6 +303,18 @@ class ChineseChronologyCustomDataTest {
         String config = System.getProperty("chinese.calendar.config");
         ChineseChronology chronology;
         switch (args[0]) {
+            case "formatters-before-configuration" -> {
+                var formatter = ChineseDateFormatters.RELATED_GREGORIAN_YEAR_DATE;
+                Properties properties = new Properties();
+                try (var input = Files.newInputStream(Path.of(config))) {
+                    properties.load(input);
+                }
+                ChineseCalendarConfigLoader.configure(properties);
+                chronology = ChineseChronology.INSTANCE;
+                ChineseDate date = chronology.date(2024, 1, 1);
+                assertThat(LocalDate.from(date)).isEqualTo(LocalDate.of(2024, 2, 10));
+                assertThat(date.format(formatter)).isEqualTo("公元2024年农历甲辰年正月初一");
+            }
             case "spi-properties" -> {
                 chronology = ChineseChronology.INSTANCE;
                 assertThat(chronology.date(2023, 1, 1).toEpochDay())
@@ -388,7 +405,7 @@ class ChineseChronologyCustomDataTest {
                         .isEqualTo(chronology.date(2024, 2, 1));
                 assertThatThrownBy(() -> leapDate.with(ChineseTemporalField.ZODIAC, ChineseZodiac.RAT.getValue()))
                         .isInstanceOf(DateTimeException.class);
-                assertThat(leapDate.getSexagenaryYear()).isEqualTo(ChineseSexagenaryYear.GUI_MAO);
+                assertThat(leapDate.getSexagenaryYear()).isEqualTo(ChineseSexagenary.GUI_MAO);
                 assertThat(chronology.range(ChineseTemporalField.SEXAGENARY_YEAR))
                         .isEqualTo(ValueRange.of(1, 60));
                 assertThat(leapDate.with(ChineseTemporalField.SEXAGENARY_YEAR, 41))
