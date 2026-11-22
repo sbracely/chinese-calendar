@@ -11,6 +11,7 @@ import java.time.temporal.UnsupportedTemporalTypeException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 import static io.github.sbracely.chinese.calendar.ChineseDateFormatters.*;
 import static io.github.sbracely.chinese.calendar.ChineseTemporalField.*;
@@ -18,6 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChineseDateFormattersTest {
+    private static final String ERA = ResourceBundle.getBundle("cldr.chinese-calendar").getString("era.1");
+
     @Test
     void printsAllFourRepresentationsExactly() {
         assertThat(ChineseDate.of(2015, 1, 1).format(SEXAGENARY_YEAR_DATE))
@@ -27,7 +30,7 @@ class ChineseDateFormattersTest {
         assertThat(ChineseDate.from(LocalDate.of(2014, 8, 7)).format(SEXAGENARY_YEAR_DAY_DATE))
                 .isEqualTo("农历甲午年七月庚戌日");
         assertThat(ChineseDate.of(2016, 11, 29).format(RELATED_GREGORIAN_YEAR_DATE))
-                .isEqualTo("公元2016年农历丙申年十一月廿九");
+                .isEqualTo(ERA + "2016年农历丙申年十一月廿九");
     }
 
     @Test
@@ -36,7 +39,7 @@ class ChineseDateFormattersTest {
         assertThat(ChineseDate.of(2023, 2, true, 1).format(SEXAGENARY_YEAR_DATE))
                 .isEqualTo("农历癸卯年闰二月初一");
         assertThat(ChineseDate.from(LocalDate.of(2017, 1, 26)).format(RELATED_GREGORIAN_YEAR_DATE))
-                .isEqualTo("公元2016年农历丙申年腊月廿九");
+                .isEqualTo(ERA + "2016年农历丙申年腊月廿九");
         assertThat(ChineseDate.from(LocalDate.of(2024, 2, 9)).format(SEXAGENARY_YEAR_DATE))
                 .isEqualTo("农历癸卯年腊月三十");
         assertThat(ChineseDate.from(LocalDate.of(2024, 2, 10)).format(SEXAGENARY_YEAR_DATE))
@@ -100,7 +103,7 @@ class ChineseDateFormattersTest {
         assertThat(ChineseDate.of(2009, 5, true, 11).format(custom)).isEqualTo("牛年闰五月十一");
         assertThat(date.format(SEXAGENARY_YEAR_DATE.withLocale(Locale.KOREAN))).isEqualTo("农历乙未年正月初一");
         assertThat(ChineseDate.of(2016, 11, 29).format(RELATED_GREGORIAN_YEAR_DATE
-                .withLocale(Locale.forLanguageTag("ar")))).isEqualTo("公元2016年农历丙申年十一月廿九");
+                .withLocale(Locale.forLanguageTag("ar")))).isEqualTo(ERA + "2016年农历丙申年十一月廿九");
     }
 
     @Test
@@ -118,7 +121,7 @@ class ChineseDateFormattersTest {
         for (ChineseDate date : List.of(ChineseDate.of(2016, 11, 29), ChineseDate.of(2016, 12, 29),
                 ChineseDate.of(2023, 2, true, 1))) {
             String text = date.format(RELATED_GREGORIAN_YEAR_DATE);
-            assertThat(text).startsWith("公元" + date.get(ChronoField.YEAR) + "年农历");
+            assertThat(text).startsWith(ERA + date.get(ChronoField.YEAR) + "年农历");
             assertThat(RELATED_GREGORIAN_YEAR_DATE.parse(text, ChineseDate::from)).isEqualTo(date);
         }
     }

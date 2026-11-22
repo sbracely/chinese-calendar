@@ -7,10 +7,11 @@ import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalField;
 import java.util.Locale;
+import java.util.ResourceBundle;
 
 /**
- * Immutable, thread-safe formatters for four Simplified Chinese lunar-date representations.
- * 四种简体中文农历日期表示的不可变、线程安全格式化器。
+ * Immutable, thread-safe formatters for four lunar-date representations with Simplified Chinese fields.
+ * 四种以简体中文表示农历字段的不可变、线程安全格式化器。
  * <p>
  * Use {@code date.format(ChineseDateFormatters.SEXAGENARY_YEAR_DATE)} directly,
  * or compose a preset with {@link DateTimeFormatterBuilder#append(DateTimeFormatter)}.
@@ -24,6 +25,10 @@ import java.util.Locale;
  * 带数字年份的预设直接使用 {@link ChronoField#YEAR}。
  * Explicit Chinese text remains unchanged by {@link DateTimeFormatter#withLocale(Locale)}.
  * 显式中文文本不会随格式化器的语言环境变化而自动翻译。
+ * The related-year preset's era text uses the default locale when this class is initialized.
+ * 公历年预设的纪元文本使用本类初始化时的默认语言环境。
+ * Changing the default locale or using {@code withLocale} later does not change it.
+ * 之后更改默认语言环境或调用 {@code withLocale} 不会改变该文本。
  */
 public final class ChineseDateFormatters {
     /**
@@ -50,14 +55,14 @@ public final class ChineseDateFormatters {
     /**
      * The Gregorian year containing lunar New Year, followed by sexagenary year and numbered month/day.
      * 农历年年首所在公历年、干支纪年、数序纪月、数序纪日。
-     * For example, 公元2016年农历丙申年十一月廿九.
-     * 例如“公元2016年农历丙申年十一月廿九”。
+     * For example, 公元2016年农历丙申年十一月廿九 with a Simplified Chinese default locale.
+     * 例如默认语言环境为简体中文时，“公元2016年农历丙申年十一月廿九”。
      * The prefix is not the Gregorian year of the date being formatted.
      * 前缀并非当前日期对应的公历年份。
      * It uses {@link ChineseDate#getYear()}, exposed as {@link ChronoField#YEAR}.
      * 此年份即 {@link ChineseDate#getYear()}，通过 {@link ChronoField#YEAR} 获取。
-     * The literal 公元 is intended for modern common-era dates, not a BCE era convention.
-     * 固定前缀“公元”用于现代公元日期，不表示完整的公元前纪年规则。
+     * The localized era text is intended for modern common-era dates, not a BCE era convention.
+     * 本地化纪元文本用于现代公元日期，不表示完整的公元前纪年规则。
      */
     public static final DateTimeFormatter RELATED_GREGORIAN_YEAR_DATE =
             create(ChineseTemporalField.SEXAGENARY_YEAR, ChronoField.DAY_OF_MONTH, true);
@@ -68,7 +73,9 @@ public final class ChineseDateFormatters {
     private static DateTimeFormatter create(TemporalField year, TemporalField day, boolean relatedYear) {
         DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder();
         if (relatedYear) {
-            builder.appendLiteral("公元").appendValue(ChronoField.YEAR)
+            builder.appendLiteral(ResourceBundle.getBundle("cldr.chinese-calendar")
+                            .getString("era.1"))
+                    .appendValue(ChronoField.YEAR)
                     .appendLiteral('年');
         }
         builder.appendLiteral("农历")

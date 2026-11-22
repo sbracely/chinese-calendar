@@ -19,7 +19,9 @@ import java.time.temporal.ChronoField;
 import java.time.temporal.ValueRange;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
+import java.util.ResourceBundle;
 import java.util.ServiceConfigurationError;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -47,6 +49,21 @@ class ChineseChronologyCustomDataTest {
     @Test
     void loadingFormattersDoesNotFreezeCalendarConfiguration() throws Exception {
         run("formatters-before-configuration", fixture("common-only").toString());
+    }
+
+    @Test
+    void numericYearFormatterUsesConfiguredEraText() throws Exception {
+        Path cldr = Files.createDirectories(directory.resolve("cldr"));
+        Files.writeString(cldr.resolve("chinese-calendar_zh_Hans_CN.properties"), "era.1=TEST-ERA\n");
+        Files.writeString(cldr.resolve("chinese-calendar_zh_CN.properties"), "era.1=TEST-ERA\n");
+        run("formatter-era", null);
+    }
+
+    @Test
+    void numericYearFormatterUsesDefaultLocaleAtInitialization() throws Exception {
+        run("formatter-default-locale", null, "zh-CN", "公元");
+        run("formatter-default-locale", null, "en", "AD");
+        run("formatter-default-locale", null, "fr", "ap. J.-C.");
     }
 
     @ParameterizedTest
@@ -303,6 +320,24 @@ class ChineseChronologyCustomDataTest {
         String config = System.getProperty("chinese.calendar.config");
         ChineseChronology chronology;
         switch (args[0]) {
+            case "formatter-era" -> {
+                Locale.setDefault(Locale.SIMPLIFIED_CHINESE);
+                ChineseDate date = ChineseDate.of(2024, 1, 1);
+                var formatter = ChineseDateFormatters.RELATED_GREGORIAN_YEAR_DATE;
+                String text = date.format(formatter);
+                assertThat(text).isEqualTo("TEST-ERA2024年农历甲辰年正月初一");
+                assertThat(formatter.parse(text, ChineseDate::from)).isEqualTo(date);
+            }
+            case "formatter-default-locale" -> {
+                Locale.setDefault(Locale.forLanguageTag(args[1]));
+                var formatter = ChineseDateFormatters.RELATED_GREGORIAN_YEAR_DATE;
+                ChineseDate date = ChineseDate.of(2024, 1, 1);
+                String text = args[2] + "2024年农历甲辰年正月初一";
+                assertThat(date.format(formatter)).isEqualTo(text);
+                assertThat(formatter.parse(text, ChineseDate::from)).isEqualTo(date);
+                Locale.setDefault(Locale.GERMAN);
+                assertThat(date.format(formatter.withLocale(Locale.KOREAN))).isEqualTo(text);
+            }
             case "formatters-before-configuration" -> {
                 var formatter = ChineseDateFormatters.RELATED_GREGORIAN_YEAR_DATE;
                 Properties properties = new Properties();
@@ -313,7 +348,8 @@ class ChineseChronologyCustomDataTest {
                 chronology = ChineseChronology.INSTANCE;
                 ChineseDate date = chronology.date(2024, 1, 1);
                 assertThat(LocalDate.from(date)).isEqualTo(LocalDate.of(2024, 2, 10));
-                assertThat(date.format(formatter)).isEqualTo("公元2024年农历甲辰年正月初一");
+                String era = ResourceBundle.getBundle("cldr.chinese-calendar").getString("era.1");
+                assertThat(date.format(formatter)).isEqualTo(era + "2024年农历甲辰年正月初一");
             }
             case "spi-properties" -> {
                 chronology = ChineseChronology.INSTANCE;
