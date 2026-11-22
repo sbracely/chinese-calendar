@@ -25,29 +25,31 @@ import java.util.ResourceBundle;
  * 带数字年份的预设直接使用 {@link ChronoField#YEAR}。
  * Explicit Chinese text remains unchanged by {@link DateTimeFormatter#withLocale(Locale)}.
  * 显式中文文本不会随格式化器的语言环境变化而自动翻译。
- * The related-year preset's era text uses the default locale when this class is initialized.
- * 公历年预设的纪元文本使用本类初始化时的默认语言环境。
- * Changing the default locale or using {@code withLocale} later does not change it.
- * 之后更改默认语言环境或调用 {@code withLocale} 不会改变该文本。
+ * The calendar name and related-year preset's era text use the default locale when this class is initialized.
+ * 历法名称和公历年预设的纪元文本使用本类初始化时的默认语言环境。
+ * Changing the default locale or using {@code withLocale} later does not change them.
+ * 之后更改默认语言环境或调用 {@code withLocale} 不会改变这些文本。
  */
 public final class ChineseDateFormatters {
+    private static final ResourceBundle CLDR = ResourceBundle.getBundle("cldr.chinese-calendar");
+
     /**
-     * Sexagenary year, numbered lunar month and day, such as 农历乙未年正月初一.
-     * 干支纪年、数序纪月、数序纪日，例如“农历乙未年正月初一”。
+     * Sexagenary year, numbered lunar month and day, such as 农历乙未年正月初一 with a Chinese default locale.
+     * 干支纪年、数序纪月、数序纪日，例如默认语言环境为中文时“农历乙未年正月初一”。
      */
     public static final DateTimeFormatter SEXAGENARY_YEAR_DATE =
             create(ChineseTemporalField.SEXAGENARY_YEAR, ChronoField.DAY_OF_MONTH, false);
 
     /**
-     * Zodiac year, numbered lunar month and day, such as 农历牛年闰五月十一.
-     * 生肖纪年、数序纪月、数序纪日，例如“农历牛年闰五月十一”。
+     * Zodiac year, numbered lunar month and day, such as 农历牛年闰五月十一 with a Chinese default locale.
+     * 生肖纪年、数序纪月、数序纪日，例如默认语言环境为中文时“农历牛年闰五月十一”。
      */
     public static final DateTimeFormatter ZODIAC_YEAR_DATE =
             create(ChineseTemporalField.ZODIAC, ChronoField.DAY_OF_MONTH, false);
 
     /**
-     * Sexagenary year and day with a numbered lunar month, such as 农历甲午年七月庚戌日.
-     * 干支纪年、数序纪月、干支纪日，例如“农历甲午年七月庚戌日”。
+     * Sexagenary year and day with a numbered lunar month, such as 农历甲午年七月庚戌日 with a Chinese default locale.
+     * 干支纪年、数序纪月、干支纪日，例如默认语言环境为中文时“农历甲午年七月庚戌日”。
      */
     public static final DateTimeFormatter SEXAGENARY_YEAR_DAY_DATE =
             create(ChineseTemporalField.SEXAGENARY_YEAR, ChineseTemporalField.SEXAGENARY_DAY, false);
@@ -73,12 +75,11 @@ public final class ChineseDateFormatters {
     private static DateTimeFormatter create(TemporalField year, TemporalField day, boolean relatedYear) {
         DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder();
         if (relatedYear) {
-            builder.appendLiteral(ResourceBundle.getBundle("cldr.chinese-calendar")
-                            .getString("era.1"))
+            builder.appendLiteral(CLDR.getString("era.1"))
                     .appendValue(ChronoField.YEAR)
                     .appendLiteral('年');
         }
-        builder.appendLiteral("农历")
+        builder.appendLiteral(CLDR.getString("name"))
                 .appendText(year, ChineseDateText.getTextMap(year)).appendLiteral('年')
                 .appendText(ChineseTemporalField.IS_LEAP_MONTH,
                         ChineseDateText.getTextMap(ChineseTemporalField.IS_LEAP_MONTH))

@@ -20,30 +20,31 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChineseDateFormattersTest {
     private static final String ERA = ResourceBundle.getBundle("cldr.chinese-calendar").getString("era.1");
+    private static final String NAME = ResourceBundle.getBundle("cldr.chinese-calendar").getString("name");
 
     @Test
     void printsAllFourRepresentationsExactly() {
         assertThat(ChineseDate.of(2015, 1, 1).format(SEXAGENARY_YEAR_DATE))
-                .isEqualTo("农历乙未年正月初一");
+                .isEqualTo(NAME + "乙未年正月初一");
         assertThat(ChineseDate.of(2009, 5, true, 11).format(ZODIAC_YEAR_DATE))
-                .isEqualTo("农历牛年闰五月十一");
+                .isEqualTo(NAME + "牛年闰五月十一");
         assertThat(ChineseDate.from(LocalDate.of(2014, 8, 7)).format(SEXAGENARY_YEAR_DAY_DATE))
-                .isEqualTo("农历甲午年七月庚戌日");
+                .isEqualTo(NAME + "甲午年七月庚戌日");
         assertThat(ChineseDate.of(2016, 11, 29).format(RELATED_GREGORIAN_YEAR_DATE))
-                .isEqualTo(ERA + "2016年农历丙申年十一月廿九");
+                .isEqualTo(ERA + "2016年" + NAME + "丙申年十一月廿九");
     }
 
     @Test
     void distinguishesLeapMonthsAndLunarYearBoundaries() {
-        assertThat(ChineseDate.of(2009, 5, 11).format(ZODIAC_YEAR_DATE)).isEqualTo("农历牛年五月十一");
+        assertThat(ChineseDate.of(2009, 5, 11).format(ZODIAC_YEAR_DATE)).isEqualTo(NAME + "牛年五月十一");
         assertThat(ChineseDate.of(2023, 2, true, 1).format(SEXAGENARY_YEAR_DATE))
-                .isEqualTo("农历癸卯年闰二月初一");
+                .isEqualTo(NAME + "癸卯年闰二月初一");
         assertThat(ChineseDate.from(LocalDate.of(2017, 1, 26)).format(RELATED_GREGORIAN_YEAR_DATE))
-                .isEqualTo(ERA + "2016年农历丙申年腊月廿九");
+                .isEqualTo(ERA + "2016年" + NAME + "丙申年腊月廿九");
         assertThat(ChineseDate.from(LocalDate.of(2024, 2, 9)).format(SEXAGENARY_YEAR_DATE))
-                .isEqualTo("农历癸卯年腊月三十");
+                .isEqualTo(NAME + "癸卯年腊月三十");
         assertThat(ChineseDate.from(LocalDate.of(2024, 2, 10)).format(SEXAGENARY_YEAR_DATE))
-                .isEqualTo("农历甲辰年正月初一");
+                .isEqualTo(NAME + "甲辰年正月初一");
     }
 
     @Test
@@ -92,7 +93,7 @@ class ChineseDateFormattersTest {
         DateTimeFormatter composed = new DateTimeFormatterBuilder()
                 .appendLiteral('[').append(SEXAGENARY_YEAR_DATE).appendLiteral(']')
                 .toFormatter(Locale.ENGLISH).withChronology(ChineseChronology.INSTANCE);
-        assertThat(date.format(composed)).isEqualTo("[农历乙未年正月初一]");
+        assertThat(date.format(composed)).isEqualTo("[" + NAME + "乙未年正月初一]");
 
         DateTimeFormatter custom = new DateTimeFormatterBuilder()
                 .appendText(ZODIAC, ChineseDateText.getTextMap(ZODIAC)).appendLiteral('年')
@@ -101,9 +102,9 @@ class ChineseDateFormattersTest {
                 .appendText(ChronoField.DAY_OF_MONTH, ChineseDateText.getTextMap(ChronoField.DAY_OF_MONTH))
                 .toFormatter(Locale.ENGLISH).withChronology(ChineseChronology.INSTANCE);
         assertThat(ChineseDate.of(2009, 5, true, 11).format(custom)).isEqualTo("牛年闰五月十一");
-        assertThat(date.format(SEXAGENARY_YEAR_DATE.withLocale(Locale.KOREAN))).isEqualTo("农历乙未年正月初一");
+        assertThat(date.format(SEXAGENARY_YEAR_DATE.withLocale(Locale.KOREAN))).isEqualTo(NAME + "乙未年正月初一");
         assertThat(ChineseDate.of(2016, 11, 29).format(RELATED_GREGORIAN_YEAR_DATE
-                .withLocale(Locale.forLanguageTag("ar")))).isEqualTo(ERA + "2016年农历丙申年十一月廿九");
+                .withLocale(Locale.forLanguageTag("ar")))).isEqualTo(ERA + "2016年" + NAME + "丙申年十一月廿九");
     }
 
     @Test
@@ -121,7 +122,7 @@ class ChineseDateFormattersTest {
         for (ChineseDate date : List.of(ChineseDate.of(2016, 11, 29), ChineseDate.of(2016, 12, 29),
                 ChineseDate.of(2023, 2, true, 1))) {
             String text = date.format(RELATED_GREGORIAN_YEAR_DATE);
-            assertThat(text).startsWith(ERA + date.get(ChronoField.YEAR) + "年农历");
+            assertThat(text).startsWith(ERA + date.get(ChronoField.YEAR) + "年" + NAME);
             assertThat(RELATED_GREGORIAN_YEAR_DATE.parse(text, ChineseDate::from)).isEqualTo(date);
         }
     }
