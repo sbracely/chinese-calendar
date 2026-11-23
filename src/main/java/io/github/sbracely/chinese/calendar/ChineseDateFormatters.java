@@ -9,6 +9,10 @@ import java.time.temporal.TemporalField;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
+import static io.github.sbracely.chinese.calendar.ChineseTemporalField.*;
+import static java.time.temporal.ChronoField.DAY_OF_MONTH;
+import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
+
 /**
  * Immutable, thread-safe formatters for four lunar-date representations with Simplified Chinese fields.
  * 四种以简体中文表示农历字段的不可变、线程安全格式化器。
@@ -31,28 +35,63 @@ import java.util.ResourceBundle;
  * 之后更改默认语言环境或调用 {@code withLocale} 不会改变这些文本。
  */
 public final class ChineseDateFormatters {
+
     private static final ResourceBundle CLDR = ResourceBundle.getBundle("cldr.chinese-calendar");
+
+    private ChineseDateFormatters() {
+    }
 
     /**
      * Sexagenary year, numbered lunar month and day, such as 农历乙未年正月初一 with a Chinese default locale.
      * 干支纪年、数序纪月、数序纪日，例如默认语言环境为中文时“农历乙未年正月初一”。
      */
     public static final DateTimeFormatter SEXAGENARY_YEAR_DATE =
-            create(ChineseTemporalField.SEXAGENARY_YEAR, ChronoField.DAY_OF_MONTH, false);
+            new DateTimeFormatterBuilder()
+                    .appendLiteral(CLDR.getString("name"))
+                    .appendText(SEXAGENARY_YEAR, ChineseDateText.getTextMap(SEXAGENARY_YEAR))
+                    .appendLiteral('年')
+                    .appendText(IS_LEAP_MONTH, ChineseDateText.getTextMap(IS_LEAP_MONTH))
+                    .appendText(MONTH_OF_YEAR, ChineseDateText.getTextMap(MONTH_OF_YEAR))
+                    .appendText(DAY_OF_MONTH, ChineseDateText.getTextMap(DAY_OF_MONTH))
+                    .toFormatter(Locale.SIMPLIFIED_CHINESE)
+                    .withChronology(ChineseChronology.INSTANCE)
+                    .withDecimalStyle(DecimalStyle.STANDARD)
+                    .withResolverStyle(ResolverStyle.STRICT);
 
     /**
      * Zodiac year, numbered lunar month and day, such as 农历牛年闰五月十一 with a Chinese default locale.
      * 生肖纪年、数序纪月、数序纪日，例如默认语言环境为中文时“农历牛年闰五月十一”。
      */
     public static final DateTimeFormatter ZODIAC_YEAR_DATE =
-            create(ChineseTemporalField.ZODIAC, ChronoField.DAY_OF_MONTH, false);
+            new DateTimeFormatterBuilder()
+                    .appendLiteral(CLDR.getString("name"))
+                    .appendText(ZODIAC, ChineseDateText.getTextMap(ZODIAC))
+                    .appendLiteral('年')
+                    .appendText(IS_LEAP_MONTH, ChineseDateText.getTextMap(IS_LEAP_MONTH))
+                    .appendText(MONTH_OF_YEAR, ChineseDateText.getTextMap(MONTH_OF_YEAR))
+                    .appendText(DAY_OF_MONTH, ChineseDateText.getTextMap(DAY_OF_MONTH))
+                    .toFormatter(Locale.SIMPLIFIED_CHINESE)
+                    .withChronology(ChineseChronology.INSTANCE)
+                    .withDecimalStyle(DecimalStyle.STANDARD)
+                    .withResolverStyle(ResolverStyle.STRICT);
 
     /**
      * Sexagenary year and day with a numbered lunar month, such as 农历甲午年七月庚戌日 with a Chinese default locale.
      * 干支纪年、数序纪月、干支纪日，例如默认语言环境为中文时“农历甲午年七月庚戌日”。
      */
     public static final DateTimeFormatter SEXAGENARY_YEAR_DAY_DATE =
-            create(ChineseTemporalField.SEXAGENARY_YEAR, ChineseTemporalField.SEXAGENARY_DAY, false);
+            new DateTimeFormatterBuilder()
+                    .appendLiteral(CLDR.getString("name"))
+                    .appendText(SEXAGENARY_YEAR, ChineseDateText.getTextMap(SEXAGENARY_YEAR))
+                    .appendLiteral('年')
+                    .appendText(IS_LEAP_MONTH, ChineseDateText.getTextMap(IS_LEAP_MONTH))
+                    .appendText(MONTH_OF_YEAR, ChineseDateText.getTextMap(MONTH_OF_YEAR))
+                    .appendText(SEXAGENARY_DAY, ChineseDateText.getTextMap(SEXAGENARY_DAY))
+                    .appendLiteral('日')
+                    .toFormatter(Locale.SIMPLIFIED_CHINESE)
+                    .withChronology(ChineseChronology.INSTANCE)
+                    .withDecimalStyle(DecimalStyle.STANDARD)
+                    .withResolverStyle(ResolverStyle.STRICT);
 
     /**
      * The Gregorian year containing lunar New Year, followed by sexagenary year and numbered month/day.
@@ -67,30 +106,18 @@ public final class ChineseDateFormatters {
      * 本地化纪元文本用于现代公元日期，不表示完整的公元前纪年规则。
      */
     public static final DateTimeFormatter RELATED_GREGORIAN_YEAR_DATE =
-            create(ChineseTemporalField.SEXAGENARY_YEAR, ChronoField.DAY_OF_MONTH, true);
-
-    private ChineseDateFormatters() {
-    }
-
-    private static DateTimeFormatter create(TemporalField year, TemporalField day, boolean relatedYear) {
-        DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder();
-        if (relatedYear) {
-            builder.appendLiteral(CLDR.getString("era.1"))
+            new DateTimeFormatterBuilder()
+                    .appendLiteral(CLDR.getString("era.1"))
                     .appendValue(ChronoField.YEAR)
-                    .appendLiteral('年');
-        }
-        builder.appendLiteral(CLDR.getString("name"))
-                .appendText(year, ChineseDateText.getTextMap(year)).appendLiteral('年')
-                .appendText(ChineseTemporalField.IS_LEAP_MONTH,
-                        ChineseDateText.getTextMap(ChineseTemporalField.IS_LEAP_MONTH))
-                .appendText(ChronoField.MONTH_OF_YEAR, ChineseDateText.getTextMap(ChronoField.MONTH_OF_YEAR))
-                .appendText(day, ChineseDateText.getTextMap(day));
-        if (day == ChineseTemporalField.SEXAGENARY_DAY) {
-            builder.appendLiteral('日');
-        }
-        return builder.toFormatter(Locale.SIMPLIFIED_CHINESE)
-                .withChronology(ChineseChronology.INSTANCE)
-                .withDecimalStyle(DecimalStyle.STANDARD)
-                .withResolverStyle(ResolverStyle.STRICT);
-    }
+                    .appendLiteral('年')
+                    .appendLiteral(CLDR.getString("name"))
+                    .appendText(SEXAGENARY_YEAR, ChineseDateText.getTextMap(SEXAGENARY_YEAR))
+                    .appendLiteral('年')
+                    .appendText(IS_LEAP_MONTH, ChineseDateText.getTextMap(IS_LEAP_MONTH))
+                    .appendText(MONTH_OF_YEAR, ChineseDateText.getTextMap(MONTH_OF_YEAR))
+                    .appendText(DAY_OF_MONTH, ChineseDateText.getTextMap(DAY_OF_MONTH))
+                    .toFormatter(Locale.SIMPLIFIED_CHINESE)
+                    .withChronology(ChineseChronology.INSTANCE)
+                    .withDecimalStyle(DecimalStyle.STANDARD)
+                    .withResolverStyle(ResolverStyle.STRICT);
 }
