@@ -28,6 +28,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static io.github.sbracely.chinese.calendar.ChineseTemporalField.*;
+import static java.time.temporal.ChronoField.DAY_OF_MONTH;
+import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -332,15 +335,43 @@ class ChineseChronologyCustomDataTest {
                 Locale.setDefault(Locale.forLanguageTag(args[1]));
                 var formatter = ChineseDateFormatters.RELATED_GREGORIAN_YEAR_DATE;
                 ChineseDate date = ChineseDate.of(2024, 1, 1);
-                String text = args[2] + "2024年" + args[3] + "甲辰年正月初一";
+                ResourceBundle cldr = ResourceBundle.getBundle("cldr.chinese-calendar", Locale.getDefault());
+                String sexagenary = ChineseSexagenary.of(date.get(SEXAGENARY_YEAR))
+                        .getDisplayName(Locale.getDefault());
+                String zodiac = ChineseZodiac.of(date.get(ZODIAC)).getDisplayName(Locale.getDefault());
+                String month = cldr.getString("month." + date.get(MONTH_OF_YEAR));
+                String day = ChineseDateText.getTextMap(DAY_OF_MONTH).get((long) date.get(DAY_OF_MONTH));
+                String leapMonth = ChineseDateText.getTextMap(IS_LEAP_MONTH).get(0L);
+                assertThat(ChineseDateText.getTextMap(SEXAGENARY_YEAR).get(date.getLong(SEXAGENARY_YEAR)))
+                        .isEqualTo(sexagenary);
+                assertThat(ChineseDateText.getTextMap(ZODIAC).get(date.getLong(ZODIAC))).isEqualTo(zodiac);
+                assertThat(ChineseDateText.getTextMap(MONTH_OF_YEAR).get(date.getLong(MONTH_OF_YEAR)))
+                        .isEqualTo(month);
+                String text = args[2] + "2024年" + args[3] + sexagenary + "年" + leapMonth + month + day;
                 assertThat(date.format(formatter)).isEqualTo(text);
                 assertThat(formatter.parse(text, ChineseDate::from)).isEqualTo(date);
                 assertThat(date.format(ChineseDateFormatters.SEXAGENARY_YEAR_DATE))
-                        .isEqualTo(args[3] + "甲辰年正月初一");
+                        .isEqualTo(args[3] + sexagenary + "年" + leapMonth + month + day);
                 assertThat(date.format(ChineseDateFormatters.ZODIAC_YEAR_DATE))
-                        .isEqualTo(args[3] + "龙年正月初一");
+                        .isEqualTo(args[3] + zodiac + "年" + leapMonth + month + day);
                 assertThat(date.format(ChineseDateFormatters.SEXAGENARY_YEAR_DAY_DATE))
-                        .startsWith(args[3] + "甲辰年正月");
+                        .startsWith(args[3] + sexagenary + "年" + leapMonth + month);
+                ChineseDate leapDate = ChineseDate.of(2009, 5, true, 11);
+                String leapMonthName = cldr.getString("month.leapPattern")
+                        .replace("{0}", cldr.getString("month.5"));
+                String leapCycle = ChineseSexagenary.of(leapDate.get(SEXAGENARY_YEAR))
+                        .getDisplayName(Locale.getDefault());
+                String leapZodiac = ChineseZodiac.of(leapDate.get(ZODIAC)).getDisplayName(Locale.getDefault());
+                String leapDay = ChineseDateText.getTextMap(DAY_OF_MONTH)
+                        .get((long) leapDate.get(DAY_OF_MONTH));
+                String relatedLeapText = args[2] + leapDate.getLong(ChronoField.YEAR) + "年"
+                        + args[3] + leapCycle + "年" + leapMonthName + leapDay;
+                assertThat(leapDate.format(ChineseDateFormatters.RELATED_GREGORIAN_YEAR_DATE))
+                        .isEqualTo(relatedLeapText);
+                assertThat(ChineseDateFormatters.RELATED_GREGORIAN_YEAR_DATE
+                        .parse(relatedLeapText, ChineseDate::from)).isEqualTo(leapDate);
+                assertThat(leapDate.format(ChineseDateFormatters.ZODIAC_YEAR_DATE))
+                        .isEqualTo(args[3] + leapZodiac + "年" + leapMonthName + leapDay);
                 Locale.setDefault(Locale.GERMAN);
                 assertThat(date.format(formatter.withLocale(Locale.KOREAN))).isEqualTo(text);
             }
@@ -354,9 +385,13 @@ class ChineseChronologyCustomDataTest {
                 chronology = ChineseChronology.INSTANCE;
                 ChineseDate date = chronology.date(2024, 1, 1);
                 assertThat(LocalDate.from(date)).isEqualTo(LocalDate.of(2024, 2, 10));
-                ResourceBundle cldr = ResourceBundle.getBundle("cldr.chinese-calendar");
-                assertThat(date.format(formatter))
-                        .isEqualTo(cldr.getString("era.1") + "2024年" + cldr.getString("name") + "甲辰年正月初一");
+                ResourceBundle cldr = ResourceBundle.getBundle("cldr.chinese-calendar", Locale.getDefault());
+                String cycle = ChineseDateText.getTextMap(SEXAGENARY_YEAR).get(date.getLong(SEXAGENARY_YEAR));
+                String month = ChineseDateText.getTextMap(MONTH_OF_YEAR).get(date.getLong(MONTH_OF_YEAR));
+                String day = ChineseDateText.getTextMap(DAY_OF_MONTH).get(date.getLong(DAY_OF_MONTH));
+                assertThat(date.format(formatter)).isEqualTo(cldr.getString("era.1") + "2024年"
+                        + cldr.getString("name") + cycle + "年"
+                        + ChineseDateText.getTextMap(IS_LEAP_MONTH).get(0L) + month + day);
             }
             case "spi-properties" -> {
                 chronology = ChineseChronology.INSTANCE;

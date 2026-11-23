@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
+import java.time.temporal.TemporalField;
 import java.time.temporal.UnsupportedTemporalTypeException;
 import java.util.List;
 import java.util.Locale;
@@ -19,32 +20,40 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChineseDateFormattersTest {
-    private static final String ERA = ResourceBundle.getBundle("cldr.chinese-calendar").getString("era.1");
-    private static final String NAME = ResourceBundle.getBundle("cldr.chinese-calendar").getString("name");
+    private static final ResourceBundle CLDR = ResourceBundle.getBundle("cldr.chinese-calendar", Locale.getDefault());
+    private static final String ERA = CLDR.getString("era.1");
+    private static final String NAME = CLDR.getString("name");
 
     @Test
     void printsAllFourRepresentationsExactly() {
         assertThat(ChineseDate.of(2015, 1, 1).format(SEXAGENARY_YEAR_DATE))
-                .isEqualTo(NAME + "乙未年正月初一");
+                .isEqualTo(expected(ChineseDate.of(2015, 1, 1), SEXAGENARY_YEAR, ChronoField.DAY_OF_MONTH));
         assertThat(ChineseDate.of(2009, 5, true, 11).format(ZODIAC_YEAR_DATE))
-                .isEqualTo(NAME + "牛年闰五月十一");
+                .isEqualTo(expected(ChineseDate.of(2009, 5, true, 11), ZODIAC, ChronoField.DAY_OF_MONTH));
         assertThat(ChineseDate.from(LocalDate.of(2014, 8, 7)).format(SEXAGENARY_YEAR_DAY_DATE))
-                .isEqualTo(NAME + "甲午年七月庚戌日");
+                .isEqualTo(expected(ChineseDate.from(LocalDate.of(2014, 8, 7)),
+                        SEXAGENARY_YEAR, SEXAGENARY_DAY));
         assertThat(ChineseDate.of(2016, 11, 29).format(RELATED_GREGORIAN_YEAR_DATE))
-                .isEqualTo(ERA + "2016年" + NAME + "丙申年十一月廿九");
+                .isEqualTo(expected(ChineseDate.of(2016, 11, 29), SEXAGENARY_YEAR,
+                        ChronoField.DAY_OF_MONTH, true));
     }
 
     @Test
     void distinguishesLeapMonthsAndLunarYearBoundaries() {
-        assertThat(ChineseDate.of(2009, 5, 11).format(ZODIAC_YEAR_DATE)).isEqualTo(NAME + "牛年五月十一");
+        assertThat(ChineseDate.of(2009, 5, 11).format(ZODIAC_YEAR_DATE))
+                .isEqualTo(expected(ChineseDate.of(2009, 5, 11), ZODIAC, ChronoField.DAY_OF_MONTH));
         assertThat(ChineseDate.of(2023, 2, true, 1).format(SEXAGENARY_YEAR_DATE))
-                .isEqualTo(NAME + "癸卯年闰二月初一");
+                .isEqualTo(expected(ChineseDate.of(2023, 2, true, 1),
+                        SEXAGENARY_YEAR, ChronoField.DAY_OF_MONTH));
         assertThat(ChineseDate.from(LocalDate.of(2017, 1, 26)).format(RELATED_GREGORIAN_YEAR_DATE))
-                .isEqualTo(ERA + "2016年" + NAME + "丙申年腊月廿九");
+                .isEqualTo(expected(ChineseDate.from(LocalDate.of(2017, 1, 26)),
+                        SEXAGENARY_YEAR, ChronoField.DAY_OF_MONTH, true));
         assertThat(ChineseDate.from(LocalDate.of(2024, 2, 9)).format(SEXAGENARY_YEAR_DATE))
-                .isEqualTo(NAME + "癸卯年腊月三十");
+                .isEqualTo(expected(ChineseDate.from(LocalDate.of(2024, 2, 9)),
+                        SEXAGENARY_YEAR, ChronoField.DAY_OF_MONTH));
         assertThat(ChineseDate.from(LocalDate.of(2024, 2, 10)).format(SEXAGENARY_YEAR_DATE))
-                .isEqualTo(NAME + "甲辰年正月初一");
+                .isEqualTo(expected(ChineseDate.from(LocalDate.of(2024, 2, 10)),
+                        SEXAGENARY_YEAR, ChronoField.DAY_OF_MONTH));
     }
 
     @Test
@@ -52,10 +61,8 @@ class ChineseDateFormattersTest {
         DateTimeFormatter month = new DateTimeFormatterBuilder()
                 .appendText(ChronoField.MONTH_OF_YEAR, ChineseDateText.getTextMap(ChronoField.MONTH_OF_YEAR))
                 .toFormatter(Locale.SIMPLIFIED_CHINESE);
-        String[] months = {"正月", "二月", "三月", "四月", "五月", "六月",
-                "七月", "八月", "九月", "十月", "十一月", "腊月"};
-        for (int i = 0; i < months.length; i++) {
-            assertThat(ChineseDate.of(2024, i + 1, 1).format(month)).isEqualTo(months[i]);
+        for (int i = 1; i <= 12; i++) {
+            assertThat(ChineseDate.of(2024, i, 1).format(month)).isEqualTo(CLDR.getString("month." + i));
         }
         DateTimeFormatter day = new DateTimeFormatterBuilder()
                 .appendText(ChronoField.DAY_OF_MONTH, ChineseDateText.getTextMap(ChronoField.DAY_OF_MONTH))
@@ -95,16 +102,19 @@ class ChineseDateFormattersTest {
                 .toFormatter(Locale.ENGLISH).withChronology(ChineseChronology.INSTANCE);
         assertThat(date.format(composed)).isEqualTo("[" + NAME + "乙未年正月初一]");
 
-        DateTimeFormatter custom = new DateTimeFormatterBuilder()
-                .appendText(ZODIAC, ChineseDateText.getTextMap(ZODIAC)).appendLiteral('年')
-                .appendText(IS_LEAP_MONTH, ChineseDateText.getTextMap(IS_LEAP_MONTH))
-                .appendText(ChronoField.MONTH_OF_YEAR, ChineseDateText.getTextMap(ChronoField.MONTH_OF_YEAR))
+        DateTimeFormatterBuilder customBuilder = new DateTimeFormatterBuilder()
+                .appendText(ZODIAC, ChineseDateText.getTextMap(ZODIAC)).appendLiteral('年');
+        DateTimeFormatter custom = ChineseDateText.appendLunarMonth(customBuilder)
                 .appendText(ChronoField.DAY_OF_MONTH, ChineseDateText.getTextMap(ChronoField.DAY_OF_MONTH))
                 .toFormatter(Locale.ENGLISH).withChronology(ChineseChronology.INSTANCE);
-        assertThat(ChineseDate.of(2009, 5, true, 11).format(custom)).isEqualTo("牛年闰五月十一");
-        assertThat(date.format(SEXAGENARY_YEAR_DATE.withLocale(Locale.KOREAN))).isEqualTo(NAME + "乙未年正月初一");
+        ChineseDate leapDate = ChineseDate.of(2009, 5, true, 11);
+        assertThat(leapDate.format(custom)).isEqualTo(text(leapDate, ZODIAC) + "年"
+                + monthText(leapDate) + text(leapDate, ChronoField.DAY_OF_MONTH));
+        assertThat(date.format(SEXAGENARY_YEAR_DATE.withLocale(Locale.KOREAN)))
+                .isEqualTo(expected(date, SEXAGENARY_YEAR, ChronoField.DAY_OF_MONTH));
         assertThat(ChineseDate.of(2016, 11, 29).format(RELATED_GREGORIAN_YEAR_DATE
-                .withLocale(Locale.forLanguageTag("ar")))).isEqualTo(ERA + "2016年" + NAME + "丙申年十一月廿九");
+                .withLocale(Locale.forLanguageTag("ar")))).isEqualTo(expected(
+                        ChineseDate.of(2016, 11, 29), SEXAGENARY_YEAR, ChronoField.DAY_OF_MONTH, true));
     }
 
     @Test
@@ -125,5 +135,36 @@ class ChineseDateFormattersTest {
             assertThat(text).startsWith(ERA + date.get(ChronoField.YEAR) + "年" + NAME);
             assertThat(RELATED_GREGORIAN_YEAR_DATE.parse(text, ChineseDate::from)).isEqualTo(date);
         }
+    }
+
+    private static String expected(ChineseDate date, TemporalField yearField, TemporalField dayField) {
+        return expected(date, yearField, dayField, false);
+    }
+
+    private static String expected(ChineseDate date, TemporalField yearField, TemporalField dayField,
+                                   boolean relatedYear) {
+        StringBuilder text = new StringBuilder();
+        if (relatedYear) {
+            text.append(ERA).append(date.getLong(ChronoField.YEAR)).append('年');
+        }
+        text.append(NAME)
+                .append(text(date, yearField))
+                .append('年')
+                .append(monthText(date))
+                .append(text(date, dayField));
+        if (dayField == SEXAGENARY_DAY) {
+            text.append('日');
+        }
+        return text.toString();
+    }
+
+    private static String text(ChineseDate date, TemporalField field) {
+        return ChineseDateText.getTextMap(field).get(date.getLong(field));
+    }
+
+    private static String monthText(ChineseDate date) {
+        String month = text(date, ChronoField.MONTH_OF_YEAR);
+        return date.getLong(IS_LEAP_MONTH) == 1
+                ? CLDR.getString("month.leapPattern").replace("{0}", month) : month;
     }
 }
