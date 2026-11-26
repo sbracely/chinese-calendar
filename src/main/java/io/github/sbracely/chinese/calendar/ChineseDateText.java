@@ -47,11 +47,16 @@ public final class ChineseDateText {
      * 支持干支年、干支日、生肖、月份、月内日期及闰月标志。
      * Month names include the month suffix; year and day-cycle names have no suffix.
      * 月份文本包含“月”字，干支及生肖文本不附加“年”或“日”字。
-     * For complete leap-month formatting, use {@link #appendLunarMonth(DateTimeFormatterBuilder)}.
-     * 完整格式化闰月时，请使用 {@link #appendLunarMonth(DateTimeFormatterBuilder)}。
+     * Add the leap-month prefix and suffix with {@link #appendLeapMonthPrefix(DateTimeFormatterBuilder)}
+     * and {@link #appendLeapMonthSuffix(DateTimeFormatterBuilder)} around the month field.
+     * 使用 {@link #appendLeapMonthPrefix(DateTimeFormatterBuilder)} 和
+     * {@link #appendLeapMonthSuffix(DateTimeFormatterBuilder)} 在月份字段前后添加闰月模式文本。
      * <pre>{@code
-     * DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder();
-     * ChineseDateText.appendLunarMonth(builder)
+     * DateTimeFormatterBuilder builder = ChineseDateText.appendLeapMonthPrefix(
+     *         new DateTimeFormatterBuilder());
+     * builder.appendText(ChronoField.MONTH_OF_YEAR,
+     *         ChineseDateText.getTextMap(ChronoField.MONTH_OF_YEAR));
+     * ChineseDateText.appendLeapMonthSuffix(builder)
      *         .appendText(ChronoField.DAY_OF_MONTH,
      *                 ChineseDateText.getTextMap(ChronoField.DAY_OF_MONTH));
      * DateTimeFormatter formatter = builder.toFormatter(Locale.getDefault())
@@ -88,10 +93,8 @@ public final class ChineseDateText {
     }
 
     /**
-     * Appends the localized month text, applying the CLDR leap-month pattern around it.
-     * 追加本地化月份文本，并按 CLDR 闰月模式在其前后添加文本。
-     * The builder is modified in place and also returned for method chaining.
-     * 此方法会原地修改并返回构建器，以便链式调用。
+     * Appends the CLDR leap-month prefix when the pattern has one.
+     * 如果 CLDR 闰月模式包含前缀，则追加此前缀。
      *
      * @param builder the formatter builder to append to
      *                要追加内容的格式化器构建器
@@ -100,12 +103,27 @@ public final class ChineseDateText {
      * @throws NullPointerException if builder is {@code null}
      *                              如果 builder 为 {@code null}
      */
-    public static DateTimeFormatterBuilder appendLunarMonth(DateTimeFormatterBuilder builder) {
+    public static DateTimeFormatterBuilder appendLeapMonthPrefix(DateTimeFormatterBuilder builder) {
         Objects.requireNonNull(builder, "builder");
         if (!LEAP_MONTH_PREFIX.isEmpty()) {
             builder.appendText(ChineseTemporalField.IS_LEAP_MONTH, LEAP_MONTH_PREFIX_MAP);
         }
-        builder.appendText(ChronoField.MONTH_OF_YEAR, MONTH);
+        return builder;
+    }
+
+    /**
+     * Appends the CLDR leap-month suffix when the pattern has one.
+     * 如果 CLDR 闰月模式包含后缀，则追加此后缀。
+     *
+     * @param builder the formatter builder to append to
+     *                要追加内容的格式化器构建器
+     * @return the same formatter builder
+     *         同一格式化器构建器
+     * @throws NullPointerException if builder is {@code null}
+     *                              如果 builder 为 {@code null}
+     */
+    public static DateTimeFormatterBuilder appendLeapMonthSuffix(DateTimeFormatterBuilder builder) {
+        Objects.requireNonNull(builder, "builder");
         if (!LEAP_MONTH_SUFFIX.isEmpty()) {
             builder.appendText(ChineseTemporalField.IS_LEAP_MONTH, LEAP_MONTH_SUFFIX_MAP);
         }

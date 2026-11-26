@@ -102,11 +102,14 @@ class ChineseDateFormattersTest {
                 .toFormatter(Locale.ENGLISH).withChronology(ChineseChronology.INSTANCE);
         assertThat(date.format(composed)).isEqualTo("[" + NAME + "乙未年正月初一]");
 
-        DateTimeFormatterBuilder customBuilder = new DateTimeFormatterBuilder()
-                .appendText(ZODIAC, ChineseDateText.getTextMap(ZODIAC)).appendLiteral('年');
-        DateTimeFormatter custom = ChineseDateText.appendLunarMonth(customBuilder)
-                .appendText(ChronoField.DAY_OF_MONTH, ChineseDateText.getTextMap(ChronoField.DAY_OF_MONTH))
-                .toFormatter(Locale.ENGLISH).withChronology(ChineseChronology.INSTANCE);
+        DateTimeFormatterBuilder customBuilder = ChineseDateText.appendLeapMonthPrefix(
+                new DateTimeFormatterBuilder()
+                        .appendText(ZODIAC, ChineseDateText.getTextMap(ZODIAC)).appendLiteral('年'));
+        customBuilder.appendText(ChronoField.MONTH_OF_YEAR, ChineseDateText.getTextMap(ChronoField.MONTH_OF_YEAR));
+        ChineseDateText.appendLeapMonthSuffix(customBuilder)
+                .appendText(ChronoField.DAY_OF_MONTH, ChineseDateText.getTextMap(ChronoField.DAY_OF_MONTH));
+        DateTimeFormatter custom = customBuilder.toFormatter(Locale.ENGLISH)
+                .withChronology(ChineseChronology.INSTANCE);
         ChineseDate leapDate = ChineseDate.of(2009, 5, true, 11);
         assertThat(leapDate.format(custom)).isEqualTo(text(leapDate, ZODIAC) + "年"
                 + monthText(leapDate) + text(leapDate, ChronoField.DAY_OF_MONTH));
